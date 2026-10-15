@@ -1,0 +1,21 @@
+{
+  "name": "cct-llm-skills",
+  "owner": {
+    "name": "EvergardenRoxy"
+  },
+  "metadata": {
+    "description": "Agent Skills for Minecraft CC: Tweaked (ComputerCraft) Lua programming",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "minecraft-cc-tweaked",
+      "description": "编写、审查、调试 CC: Tweaked（ComputerCraft）Lua 程序：计算机、海龟、外设、rednet/GPS、红石与 HTTP 自动化。",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/minecraft-cc-tweaked"
+      ]
+    }
+  ]
+}
