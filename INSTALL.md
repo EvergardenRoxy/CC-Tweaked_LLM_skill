@@ -32,9 +32,12 @@ CCT_prompt_pack.zip
     ├── api-reference.md
     ├── app-engineering.md
     ├── config-and-versions.md
+    ├── design-thinking.md
     ├── events-and-concurrency.md
+    ├── getting-started.md
     ├── networking.md
     ├── peripherals.md
+    ├── security.md
     ├── templates.md
     ├── troubleshooting.md
     └── turtle.md
@@ -117,7 +120,7 @@ gemini skills install https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill.git
 
 ## ChatGPT、DeepSeek 等不支持 Skills 的对话工具
 
-1. 在项目 / 自定义 GPT / 知识库中上传 `SKILL.md` 和 `references/` 下的全部文件；若只能上传少量文件，至少上传 `SKILL.md`、`references/api-reference.md`、`references/peripherals.md` 和 `references/templates.md`。
+1. 在项目 / 自定义 GPT / 知识库中上传 `SKILL.md` 和 `references/` 下的全部文件；若只能上传少量文件，至少上传 `SKILL.md`、`references/design-thinking.md`、`references/api-reference.md` 和 `references/peripherals.md`。
 2. 在系统提示词或项目指令中写入：
 
    ```text

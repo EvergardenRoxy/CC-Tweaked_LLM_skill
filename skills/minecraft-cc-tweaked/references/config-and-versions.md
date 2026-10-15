@@ -91,6 +91,7 @@
 - 官方文档：<https://tweaked.cc>（模块、外设、事件、指南、参考页）；源码与问题反馈：<https://github.com/cc-tweaked/CC-Tweaked>。
 - 本 Skill 中的 `lua` 代码块均通过 Lua 5.2 编译器语法检查，并对照 tweaked.cc 的成员列表核对了全局 API 名称；**外设方法与运行时行为无法静态验证**，以游戏内实测为准。
 - 官方 Item details 页的示例 `local ok, block = turtle.getItemDetail(slot, true)` 有误：`getItemDetail` 只返回一个值（表或 nil），应写 `local item = turtle.getItemDetail(slot, true)`。
+- 官方 `turtle` 页面中 `getFuelLevel()` 的摘要写作 "Get the maximum amount of fuel this turtle currently holds"，实际返回的是**当前**燃料量；最大值用 `getFuelLimit()`。
 - 燃料值（煤 80 等）、终端尺寸、配置项默认值来自模组默认设置，整合包可能修改。
 - 海龟动作失败原因字符串、部分报错原文随版本变化，排错时让用户提供实际输出。
 - 第三方附属模组（Advanced Peripherals、Plethora 等）提供的外设与方法不在 tweaked.cc 文档内，必须用 `peripheral.getMethods` 实测。

@@ -9,6 +9,8 @@
 
 本仓库提供一份**以官方文档 [tweaked.cc](https://tweaked.cc) 为准**的 Skill，把 CC: Tweaked 的执行模型、API、外设、海龟、网络、常见陷阱、程序模板和排错流程整理成 AI 可直接遵循的指南。
 
+**设计理念：教思路，而不是给答案。** 只塞给模型一堆成品程序，它只会生成相似的程序；换了设备、规模或网络条件就写错。因此本 Skill 的核心是**从需求推导程序的方法**：CC 世界的硬约束清单、程序结构的选择依据、对每个外部交互的失败模式分析、一组可组合的思路模式（单一事件等待点、按真实时间节拍、有界缓冲、执行后验证、数据驱动规则、状态对账、启动自检……），以及评审网上教程/旧代码的方法。模板只作为"某组约束下的参考答案"，并标注了"条件变了要换什么设计"。
+
 [English summary](#english)
 
 <a id="ai-制作声明"></a>
@@ -33,15 +35,15 @@
 
 ## Skill 内容一览
 
-Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 380 行），细节文件由模型在需要时按索引读取，避免每次占用大量上下文。
+Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 400 行），细节文件由模型在需要时按索引读取，避免每次占用大量上下文。
 
 **核心文件** [`SKILL.md`](skills/minecraft-cc-tweaked/SKILL.md)（每次触发时加载）
 
 | 章节 | 内容 |
 |---|---|
-| 0. 铁律 | 给 AI 的 16 条硬约束（Lua 5.2、不编造 API、`.` 与 `:`、外设命名、检查返回值、必须让出、`sleep` 丢事件、稀疏表、燃料、区块加载、中文显示限制、大型程序工程化……） |
+| 0. 铁律 | 给 AI 的 18 条硬约束（Lua 5.2、不编造 API、`.` 与 `:`、外设命名、检查返回值、必须让出、`sleep` 丢事件、稀疏表、燃料、区块加载、中文显示、工程化、不照搬模板与教程、安全先写威胁模型……） |
 | 1. 参考文件索引 | "遇到什么情况读哪个文件"的路由表 |
-| 2. 协助流程 | 需要问清的信息、设计步骤、回答格式模板 |
+| 2. 协助流程 | 需要问清的信息、六步设计推导、回答格式模板（含关键设计决策与验证方法） |
 | 3. 执行模型 | CraftOS 启动流程、事件队列、yield、外设调用耗时、程序结构选择 |
 | 4. API 速查 | Lua 5.2 差异、外设、物品栏/流体/能量、海龟、红石、网络、终端/显示器、文件/设置、版本敏感特性 |
 | 5. 最常见的错误 | 12 条高频错误与正确写法 |
@@ -51,14 +53,17 @@ Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 
 
 | 文件 | 内容 |
 |---|---|
+| `design-thinking.md` | **设计方法**：六步推导流程、CC 硬约束清单、结构选择、失败模式五问、12 个思路模式、评审代码/教程的方法、完整推导示例 |
+| `security.md` | 威胁模型（网络旁观者/能操作终端/能拆机/OP）、各机制能挡住什么、常见教程误区、加盐迭代哈希（附经测试向量验证的纯 Lua SHA-256）、本地登录终端、挑战-应答远程认证 |
+| `getting-started.md` | 新手入门：shell/`lua` 交互环境/程序文件的区别、读懂文档签名、外部编辑器与文件位置、模拟器、中文资料的可信度 |
 | `api-reference.md` | 全局 API 完整参考：`os`、`fs`、`io`、`term`、`window`、`colors`、`textutils`、`settings`、`shell`、`redstone`、`parallel`、`vector`、`commands`、`cc.*` 库 |
 | `peripherals.md` | 外设连接与命名、通用外设（inventory/fluid/energy）、物品与方块详情字段、显示器、扬声器、打印机、驱动器、红石继电器、模组外设排查 |
 | `turtle.md` | 海龟全部函数、燃料、工具升级、可靠移动封装、坐标跟踪、物品栏管理、常见任务要点、区块加载 |
 | `networking.md` | rednet、modem、GPS 星座搭建、HTTP/WebSocket、安全提示 |
 | `events-and-concurrency.md` | 全部事件参数表、事件循环、计时器、`parallel`、协程、`terminate`、性能 |
-| `templates.md` | 14 个可直接使用的程序（仓储统计、熔炉阵列、分拣、伐木、隧道、农场、遥控、触摸面板、能量控制、储罐、密码门、网络音乐、断点续跑、多扬声器同步播放器） |
+| `templates.md` | 14 个参考程序及其背后的设计决策表（仓储统计、熔炉阵列、分拣、伐木、隧道、农场、遥控、触摸面板、能量控制、储罐、密码门、网络音乐、断点续跑、多扬声器同步播放器） |
 | `app-engineering.md` | 大型程序工程化：模块结构、可靠的异步 HTTP（请求标记、超时看门狗、选择性重试、分块读取、Range 大文件下载）、安装器与更新器、设置持久化与校验、外设选择与热插拔、功能探测、日志脱敏、调色板恢复、中文显示限制、发布与 CI |
-| `troubleshooting.md` | 45 条常见错误对照、报错信息速查、排错流程、游戏内工具 |
+| `troubleshooting.md` | 51 条常见错误对照、报错信息速查、排错流程、游戏内工具 |
 | `config-and-versions.md` | 服务器配置、`/computercraft` 命令、数据包、版本差异、Lua 兼容性、资料来源与已知出入 |
 
 ## 安装
@@ -95,7 +100,7 @@ Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 
 ## 准确性说明
 
 - Skill 中全部 `lua` 代码块均已用 [`scripts/validate_skill.py`](scripts/validate_skill.py) 通过 **Lua 5.2 编译器**（与 CC: Tweaked 的 Cobalt 运行时同版本）的语法检查，并把其中用到的全局 API（`turtle.*`、`fs.*`、`peripheral.*`……）与 [tweaked.cc](https://tweaked.cc) 页面上的成员列表逐一核对；同时检查 `turtle:forward()` 这类误用 `:` 的写法；并从编译后的字节码中找出**全局变量赋值**（示例代码一律使用 `local`）和**未知全局变量读取**（拼写错误如 `pirnt`、`textutil`）。
-- 部分模板（仓储统计、熔炉、分拣、海龟隧道、多扬声器播放器、HTTP 客户端）还在模拟的 CC 环境中运行过，验证了重试、跳转、外设断开等逻辑分支。
+- 部分代码（仓储统计、熔炉、分拣、海龟隧道、多扬声器播放器、HTTP 客户端、登录终端、认证服务器）还在模拟的 CC 环境中运行过，验证了重试、跳转、外设断开、锁定、重放攻击等逻辑分支；SHA-256 实现与标准测试向量及随机二进制输入的结果一致。
 - 每次推送由 GitHub Actions（[`.github/workflows/validate.yml`](.github/workflows/validate.yml)）自动运行校验，并打包 `CCT_prompt_pack.zip` 作为构建产物。
 - 静态校验只能保证"能编译、全局 API 名字存在"，不能保证外设方法和游戏内行为。涉及模组外设、槽位、服务器配置时，Skill 会引导用户在游戏内用 `peripheral.getMethods` 等方式实测。
 - 与官方文档示例的已知出入、配置默认值的说明见 `references/config-and-versions.md` 最后一节。
@@ -126,7 +131,10 @@ python3 scripts/validate_skill.py
 │           ├── templates.md
 │           ├── troubleshooting.md
 │           ├── config-and-versions.md
-│           └── app-engineering.md
+│           ├── app-engineering.md
+│           ├── design-thinking.md
+│           ├── security.md
+│           └── getting-started.md
 ├── scripts/
 │   └── validate_skill.py         # Lua 语法、API 名称、全局变量与结构校验
 ├── INSTALL.md                    # 各工具安装详解
@@ -152,7 +160,7 @@ python3 scripts/validate_skill.py
 
 ## English
 
-An [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) that teaches Claude to write, review and debug Lua programs for the Minecraft mod **CC: Tweaked** (ComputerCraft): computers, turtles, pocket computers, monitors, modems, inventories, rednet/GPS, redstone and HTTP. The skill content is written in Chinese and is based on the official documentation at [tweaked.cc](https://tweaked.cc). It covers the execution model (events, yielding), the Lua 5.2 (Cobalt) runtime differences, the full API reference, peripherals, turtles, networking, a template library of 14 complete programs, an engineering guide for larger applications (reliable async HTTP, installers/updaters, settings, hot-plugging), a pre-delivery checklist and troubleshooting guides. All `lua` code blocks are syntax-checked with a Lua 5.2 compiler, their global API calls are verified against tweaked.cc, and global assignments or unknown globals are rejected; CI runs the validator on every push.
+An [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) that teaches Claude to write, review and debug Lua programs for the Minecraft mod **CC: Tweaked** (ComputerCraft): computers, turtles, pocket computers, monitors, modems, inventories, rednet/GPS, redstone and HTTP. The skill content is written in Chinese and is based on the official documentation at [tweaked.cc](https://tweaked.cc). Rather than handing the model finished programs to imitate, it teaches how to derive a program from the user's constraints (hard limits of the CC world, structure selection, failure-mode analysis, reusable design patterns, threat modelling for security, reviewing third-party tutorials). It covers the execution model (events, yielding), the Lua 5.2 (Cobalt) runtime differences, the full API reference, peripherals, turtles, networking, a template library of 14 complete programs, an engineering guide for larger applications (reliable async HTTP, installers/updaters, settings, hot-plugging), a pre-delivery checklist and troubleshooting guides. All `lua` code blocks are syntax-checked with a Lua 5.2 compiler, their global API calls are verified against tweaked.cc, and global assignments or unknown globals are rejected; CI runs the validator on every push.
 
 Install with Claude Code:
 
