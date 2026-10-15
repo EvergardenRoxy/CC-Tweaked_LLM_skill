@@ -5,3 +5,5 @@ node_modules/
 .idea/
 .vscode/
 .cache/
+__pycache__/
+*.zip
