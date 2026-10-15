@@ -139,6 +139,7 @@ print("stopped")
 
 - **传函数本身，不要传调用结果**：`parallel.waitForAny(heartbeat, listener)` ✓，`parallel.waitForAny(heartbeat(), listener())` ✗（会先在主线程里执行 `heartbeat()`，永远不返回）。
 - 带参数的任务包一层：`function() worker(1) end`。
+- 每个协程都会收到所有事件的副本：两个协程同时 `http.get` **同一 URL** 会拿到同一个响应，另一个响应无人认领。并发请求时让每个请求的 URL 各不相同（见 `app-engineering.md`）。
 - `waitForAny`：任一结束即全部停止；`waitForAll`：等全部结束。任一报错会向上抛并停止其他任务。
 - 1.120.0+ `waitForAll(function(spawn) spawn(f, ...) end)` 可动态添加任务。
 

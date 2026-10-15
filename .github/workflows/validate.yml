@@ -1,0 +1,38 @@
+name: Validate skill
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Lua 5.2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends lua5.2
+
+      - name: Cache tweaked.cc pages
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: tweaked-cc-${{ github.run_id }}
+          restore-keys: tweaked-cc-
+
+      - name: Validate code blocks and structure
+        run: python3 scripts/validate_skill.py
+
+      - name: Build skill zip
+        run: |
+          cd skills/minecraft-cc-tweaked
+          zip -r ../../CCT_prompt_pack.zip SKILL.md references
+
+      - name: Upload skill zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: CCT_prompt_pack
+          path: CCT_prompt_pack.zip

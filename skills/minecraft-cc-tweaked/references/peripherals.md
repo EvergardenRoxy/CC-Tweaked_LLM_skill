@@ -179,6 +179,13 @@ for chunk in io.lines("/music.dfpwm", 16 * 1024) do
 end
 ```
 
+DFPWM 与多扬声器要点：
+- DFPWM 为 48 kHz、每样本 1 bit：**1 秒 = 6000 字节**；16 KiB 一块正好解码出 131072 个样本（`playAudio` 上限）。时长与跳转都按字节换算。
+- 解码器有状态：同一条流解码一次、把同一个结果发给所有扬声器；跳转/暂停后新建解码器；不同的流各用一个解码器。
+- 多台扬声器同步：同一块写给所有扬声器，只对返回 false 的那几台等待 `speaker_audio_empty` 后重试，全部接受后才送下一块（完整程序见 `templates.md` 第 14 个）。
+- 暂停用 `stop()` 清空缓冲；外设可能在播放中被拆掉，`playAudio` 用 `pcall` 包住。
+- 音量范围 0–3，不要依赖超出范围时的行为，先用 `math.max(0, math.min(3, v))` 限制。
+
 ## 打印机 `printer`
 
 `newPage()`（需要纸和墨，失败返回 false）→ `setPageTitle([标题])`、`setCursorPos(x, y)`、`write(文本)`、`getCursorPos()`、`getPageSize()` → `endPage()`（输出到托盘）；`getInkLevel()`、`getPaperLevel()`。

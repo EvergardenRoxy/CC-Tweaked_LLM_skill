@@ -17,6 +17,7 @@
 11. 密码门
 12. 扬声器播放网络上的 DFPWM 音频
 13. 断点续跑的启动包装
+14. 多扬声器同步播放器（暂停、跳转、音量、热插拔）
 
 ---
 
@@ -627,6 +628,8 @@ end
 res.close()
 ```
 
+要点：二进制模式下载；每块 16 KiB 的 DFPWM 正好解码成 131072 个样本（扬声器单次上限 128×1024）；`playAudio` 返回 false 时等 `speaker_audio_empty` 再重试**同一块**。超过服务器下载上限（默认约 16 MiB）的文件要用 Range 分段下载（见 `app-engineering.md`）。
+
 ## 13. 断点续跑的启动包装
 
 把长任务的进度写入文件，区块重载/重启后从 `startup.lua` 继续。
@@ -664,3 +667,115 @@ end
 fs.delete(STATE_FILE)
 print("job finished")
 ```
+
+## 14. 多扬声器同步播放器（暂停、跳转、音量、热插拔）
+
+**安装**：计算机 + 一个或多个扬声器（相邻或有线网络）；DFPWM 文件放在本机。用法：`player /music/song.dfpwm`。按键：空格 暂停/继续，←/→ 后退/前进 10 秒，↑/↓ 音量，Q 退出。
+
+DFPWM 基本事实：48 kHz、每个样本 1 bit，所以 **1 秒 = 6000 字节**；时长 = 文件字节数 ÷ 6000，跳转 = 改变字节偏移。解码器有内部状态：同一条音频流用一个解码器（解一次、发给所有扬声器）；跳转后换新解码器，避免接缝处杂音；不同的流（如左右声道各一个文件）各用各的解码器。
+
+```lua
+-- player.lua
+local path = ... or error("用法: player <文件.dfpwm>", 0)
+local dfpwm = require("cc.audio.dfpwm")
+
+local BYTES_PER_SECOND = 6000
+local CHUNK = 16 * 1024                 -- 每块约 2.7 秒
+
+local h = fs.open(path, "rb") or error("无法打开 " .. path, 0)
+local data = h.readAll()
+h.close()
+
+local state = { offset = 0, paused = false, volume = 1, decoder = dfpwm.make_decoder() }
+
+local function speakers()
+    local list = {}
+    for _, name in ipairs(peripheral.getNames()) do
+        if peripheral.hasType(name, "speaker") then list[#list + 1] = peripheral.wrap(name) end
+    end
+    return list
+end
+
+local function seek(seconds)
+    local target = state.offset + seconds * BYTES_PER_SECOND
+    state.offset = math.max(0, math.min(#data, math.floor(target)))
+    state.decoder = dfpwm.make_decoder()          -- 跳转后重置解码器
+    for _, sp in ipairs(speakers()) do pcall(sp.stop) end
+end
+
+local function status()
+    local x, y = term.getCursorPos()
+    term.setCursorPos(1, y)
+    term.clearLine()
+    write(("%s %3d/%3ds vol %.1f"):format(state.paused and "||" or "> ",
+        math.floor(state.offset / BYTES_PER_SECOND), math.floor(#data / BYTES_PER_SECOND), state.volume))
+    term.setCursorPos(x, y)
+end
+
+-- 把一块音频送进所有扬声器；只对拒收的扬声器重试，全部接受后才前进
+local function play_loop()
+    while state.offset < #data do
+        if state.paused then
+            os.pullEvent("player_resume")
+        else
+            local pending = speakers()
+            if #pending == 0 then
+                status()
+                os.pullEvent("peripheral")                 -- 没有扬声器：等接入后重试这一块
+            else
+                local chunk = data:sub(state.offset + 1, state.offset + CHUNK)
+                local offset_at_start = state.offset
+                local buffer = state.decoder(chunk)
+                while #pending > 0 and state.offset == offset_at_start and not state.paused do
+                    local retry = {}
+                    for _, sp in ipairs(pending) do
+                        local ok, accepted = pcall(sp.playAudio, buffer, state.volume)
+                        if ok and not accepted then retry[#retry + 1] = sp end   -- ok=false：已断开，丢弃
+                    end
+                    pending = retry
+                    if #pending > 0 then os.pullEvent("speaker_audio_empty") end
+                end
+                if state.offset == offset_at_start and not state.paused then
+                    state.offset = state.offset + #chunk
+                end
+                status()
+            end
+        end
+    end
+end
+
+local function key_loop()
+    while true do
+        local _, key = os.pullEvent("key")
+        if key == keys.space then
+            state.paused = not state.paused
+            if state.paused then
+                for _, sp in ipairs(speakers()) do pcall(sp.stop) end
+                state.decoder = dfpwm.make_decoder()      -- 继续时从当前块重新解码
+            else
+                os.queueEvent("player_resume")
+            end
+        elseif key == keys.left then seek(-10)
+        elseif key == keys.right then seek(10)
+        elseif key == keys.up then state.volume = math.min(3, state.volume + 0.5)
+        elseif key == keys.down then state.volume = math.max(0, state.volume - 0.5)
+        elseif key == keys.q then return
+        end
+        status()
+    end
+end
+
+print(("播放 %s，时长 %d 秒"):format(path, math.floor(#data / BYTES_PER_SECOND)))
+print("空格 暂停  ←/→ 跳转  ↑/↓ 音量  Q 退出")
+status()
+parallel.waitForAny(play_loop, key_loop)
+for _, sp in ipairs(speakers()) do pcall(sp.stop) end
+print()
+print("结束")
+```
+
+要点：
+- 所有扬声器写入**同一块**解码结果，只有全部接受后才读下一块，多台扬声器保持同步；新接入的扬声器从下一块开始加入。
+- `pcall` 包住 `playAudio`：外设在播放中被拆掉时只丢弃该扬声器，不中断播放。
+- 暂停用 `speaker.stop()` 清空缓冲，否则还会播完已缓冲的约几秒音频。
+- 整个文件读入内存：文件很大（几十 MB）时改为按块 `h.read(CHUNK)` 流式读取。

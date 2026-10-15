@@ -135,6 +135,9 @@ print(data and "parsed" or "not json")
 ```
 
 - 同时最多 16 个 HTTP 请求（`parallel` 并发也不会更多）。
+- `http.get`/`http.post` 内部按 **URL** 等待 `http_success`/`http_failure`：在 `parallel` 里同时请求**同一个 URL** 会互相抢响应。长期运行或并发联网的程序请用带唯一请求标记、超时看门狗、选择性重试（网络错误/408/429/5xx 重试，其余 4xx 直接失败）、分块读取的客户端，见 `app-engineering.md`。
+- 单次下载默认上限约 16 MiB（`max_download`），更大的文件用 `Range` 请求分段下载（同见 `app-engineering.md`）。
+- 读取几 MB 的响应时用 `res.read(64 * 1024)` 分块读并在块间让出，避免长时间不让出。
 - 服务器可在 `computercraft-server.toml` 关闭 HTTP 或按域名设置规则；默认禁止访问局域网/本机地址（`$private` 规则），本地测试需要服务器主改配置（见 `config-and-versions.md`）。
 - 1.109.0+ 响应以原始字节读取，不再做 UTF-8 解码。
 - 下载程序：`wget <url> [文件名]`、`wget run <url>`、`pastebin get <代码> <文件名>`、`pastebin run <代码>`——都依赖 HTTP 已启用。

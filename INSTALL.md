@@ -30,6 +30,7 @@ CCT_prompt_pack.zip
 ├── SKILL.md
 └── references/
     ├── api-reference.md
+    ├── app-engineering.md
     ├── config-and-versions.md
     ├── events-and-concurrency.md
     ├── networking.md

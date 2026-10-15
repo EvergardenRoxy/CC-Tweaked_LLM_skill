@@ -8,7 +8,10 @@
 2. Checks every `<api>.<name>` used in those blocks against the members
    documented on https://tweaked.cc (module, peripheral and generic peripheral
    pages), and flags `<api>:<name>` calls on global APIs.
-3. Checks SKILL.md structure: front matter, line budget, and that every
+3. Reads the `luac -l` listing of each block: assigning a global is an error
+   (programs must use `local`), and reading a global must name a standard Lua
+   or CC: Tweaked global (catches typos such as `pirnt` or `textutil`).
+4. Checks SKILL.md structure: front matter, line budget, and that every
    `references/*.md` it mentions exists.
 
 Requirements: Python 3.8+, Lua 5.2 compiler (`luac5.2` or `luac` 5.2;
@@ -52,6 +55,18 @@ CHECKED_APIS = {
 }
 # Globals that do not exist in CC: Tweaked although they exist in standard Lua.
 MISSING_GLOBALS = {"collectgarbage"}
+# Globals a program may read besides the module pages listed on tweaked.cc.
+STD_GLOBALS = {
+    "_G", "_VERSION", "assert", "error", "getmetatable", "ipairs", "load", "loadfile",
+    "dofile", "next", "pairs", "pcall", "print", "rawequal", "rawget", "rawlen", "rawset",
+    "require", "select", "setmetatable", "tonumber", "tostring", "type", "xpcall",
+    "string", "table", "math", "coroutine", "bit32", "utf8", "debug", "package",
+    # CraftOS globals from bios.lua (documented on the _G page)
+    "sleep", "write", "printError", "read", "_HOST", "_CC_DEFAULT_SETTINGS",
+    # APIs that only exist on some devices or under the shell
+    "commands", "turtle", "pocket", "shell", "multishell", "rs",
+}
+GLOBAL_ACCESS_RE = re.compile(r"\b(GETTABUP|SETTABUP)\b.*;\s*_ENV \"(\w+)\"")
 
 
 def fetch(path):
@@ -70,7 +85,7 @@ def load_api(offline):
         sys.exit("--offline given but .cache/tweaked.cc is empty; run once with network access")
     pages = sorted(set(PAGE_RE.findall(fetch("index.html"))))
     members = {p[: -len(".html")]: set(MEMBER_RE.findall(fetch(p))) for p in pages}
-    api = {}
+    api = {"__modules__": {p.split("/", 1)[1].lstrip("_") for p in members if p.startswith("module/")}}
     for name, sources in CHECKED_APIS.items():
         missing = [s for s in sources if s not in members]
         if missing:
@@ -132,6 +147,25 @@ def check_api_usage(code, api):
     return errors
 
 
+def check_globals(luac, src_file, api):
+    """Use the bytecode listing to find global reads and writes."""
+    res = subprocess.run([luac, "-p", "-l", "-l", str(src_file)], capture_output=True, text=True)
+    allowed = STD_GLOBALS | api["__modules__"]
+    errors = []
+    for line in res.stdout.splitlines():
+        m = GLOBAL_ACCESS_RE.search(line)
+        if not m:
+            continue
+        op, name = m.groups()
+        where = re.search(r"\[(\d+)\]", line)
+        at = f"line {where.group(1)}" if where else "?"
+        if op == "SETTABUP":
+            errors.append(f"{at}: assigns global '{name}' - declare it with local")
+        elif name not in allowed:
+            errors.append(f"{at}: reads unknown global '{name}' (typo or missing local?)")
+    return sorted(set(errors), key=lambda e: int(re.match(r"line (\d+)", e).group(1)) if e[0] == "l" else 0)
+
+
 def find_luac(explicit):
     candidates = [explicit] if explicit else ["luac5.2", "luac"]
     for c in candidates:
@@ -161,6 +195,8 @@ def check_code_blocks(luac, api):
                 errors = []
                 if res.returncode != 0:
                     errors.append(res.stderr.strip().replace(str(src_file), "block"))
+                else:
+                    errors += check_globals(luac, src_file, api)
                 errors += check_api_usage(body, api)
                 if errors:
                     failures += 1
