@@ -163,7 +163,7 @@ return net
 local net = require("net")
 local body, err = net.request { url = "https://example.com/api/status", timeout = 10, retries = 2 }
 if not body then
-    printError("请求失败: " .. tostring(err))
+    printError("Request failed: " .. tostring(err))
 else
     local data = textutils.unserialiseJSON(body)
     print(data and "ok" or "not json")
@@ -188,7 +188,7 @@ end
 -- installer.lua：用法 installer <清单网址>
 -- 清单是一个返回表的 Lua 文件：
 -- return { version = "1.2.0", base = "https://example.com/myapp/", files = { "startup.lua", "app/net.lua" } }
-local manifest_url = ... or error("用法: installer <清单网址>", 0)
+local manifest_url = ... or error("Usage: installer <manifest-url>", 0)
 
 local function get(url)
     for i = 1, 3 do
@@ -200,17 +200,17 @@ local function get(url)
             if code >= 200 and code < 300 and body and #body > 0 then return body end
             err = "HTTP " .. code
         end
-        printError(("下载失败 %s (%s)，重试 %d/3"):format(url, tostring(err), i))
+        printError(("Download failed %s (%s), retry %d/3"):format(url, tostring(err), i))
         sleep(i)
     end
-    error("无法下载 " .. url, 0)
+    error("Cannot download " .. url, 0)
 end
 
 local source = get(manifest_url)
 local chunk, load_err = load(source, "=manifest", "t", {})
-if not chunk then error("清单无法解析: " .. load_err, 0) end
+if not chunk then error("Cannot parse manifest: " .. load_err, 0) end
 local manifest = chunk()
-if type(manifest) ~= "table" or type(manifest.files) ~= "table" then error("清单格式错误", 0) end
+if type(manifest) ~= "table" or type(manifest.files) ~= "table" then error("Invalid manifest format", 0) end
 
 -- 1. 全部下载到内存并校验
 local downloads, needed, replaced = {}, 0, 0
@@ -219,7 +219,7 @@ for i, path in ipairs(manifest.files) do
     local body = get(manifest.base .. path)
     if path:match("%.lua$") then
         local ok, err = load(body, "=" .. path)
-        if not ok then error(path .. " 无法编译: " .. err, 0) end
+        if not ok then error(path .. " failed to compile: " .. err, 0) end
     end
     downloads[#downloads + 1] = { path = "/" .. path, body = body }
     needed = needed + #body
@@ -231,7 +231,7 @@ end
 -- 2. 检查空间
 local free = fs.getFreeSpace("/")
 if free ~= "unlimited" and free + replaced < needed then
-    error(("空间不足：需要 %d 字节，可用 %d 字节"):format(needed, free + replaced), 0)
+    error(("Not enough space: need %d bytes, have %d bytes"):format(needed, free + replaced), 0)
 end
 
 -- 3. 写入
@@ -246,7 +246,7 @@ end
 local h = fs.open("/.version", "w")
 h.write(tostring(manifest.version or "?"))
 h.close()
-print("安装完成，版本 " .. tostring(manifest.version) .. "。按任意键重启")
+print("Installed version " .. tostring(manifest.version) .. ". Press any key to reboot")
 os.pullEvent("key")
 os.reboot()
 ```
@@ -289,18 +289,18 @@ end
 local function load_config()
     if not fs.exists(PATH) then return normalize(nil), nil end
     local h = fs.open(PATH, "r")
-    if not h then return normalize(nil), "无法打开配置文件" end
+    if not h then return normalize(nil), "Cannot open config file" end
     local text = h.readAll()
     h.close()
     local raw, err = textutils.unserialiseJSON(text)
-    if raw == nil then return normalize(nil), "配置文件损坏，已使用默认值: " .. tostring(err) end
+    if raw == nil then return normalize(nil), "Config file corrupt, using defaults: " .. tostring(err) end
     return normalize(raw), nil
 end
 
 local function save_config(cfg)
     local text = textutils.serialiseJSON(normalize(cfg))
     local free = fs.getFreeSpace("/")
-    if free ~= "unlimited" and free < #text then return false, "磁盘空间不足" end
+    if free ~= "unlimited" and free < #text then return false, "Not enough disk space" end
     if not fs.exists("/data") then fs.makeDir("/data") end
     local h, err = fs.open(PATH, "w")
     if not h then return false, err end
@@ -398,7 +398,7 @@ local function safely(action, ...)
     local ok, err = pcall(action, ...)
     if not ok then
         log("error", err)
-        printError("操作失败: " .. tostring(err))
+        printError("Action failed: " .. tostring(err))
     end
     return ok
 end
@@ -436,8 +436,38 @@ restore_palette()
 if not ok and err ~= "Terminated" then printError(err) end
 ```
 
-- **中文显示**：CC 的终端和显示器只能显示自带的 256 个字符（ASCII + 拉丁字母 + 图形块字符），**不能直接显示中文**。`print("你好")` 会显示成乱码，`#"你好"` 是 6（字节数）而不是 2。可选方案：界面文字用英文/拼音；用 `utf8.len` 计算字符数；需要中文时使用社区的点阵字体渲染库（用 2×3 像素的图形字符拼出汉字，占用多个字符格，需要高级显示器和较小的文字缩放）。
-- 用户输入的中文同样无法通过 `read()` 正常输入，需要单独的输入方案。
+- **中文显示**：CC 的终端和显示器只能显示自带的 256 个字符（ASCII + 拉丁字母 + 图形块字符），**不能直接显示中文**。`print("你好")` 会显示成乱码，`#"你好"` 是 6（字节数）而不是 2（字符数用 `utf8.len`）。**默认假设用户没有安装中文字体库**：界面文字用英文/拼音，并告诉用户原因。
+- 用户明确想要中文界面时，提示用户可以使用社区库 **utf8display**（<https://git.liulikeji.cn/xingluo/ComputerCraft-Utf8/src/branch/main/utf8display>）：用 2×3 像素的图形字符拼出汉字，再用 `term.blit` 绘制。先向用户说明下面的前提，用户确认后再写中文界面：
+  - 需要 CC: Tweaked 1.94.0+（用到 `colors.toBlit`）；服务器开启 HTTP，且没有拦截 `git.liulikeji.cn`。
+  - 字体文件很大：默认的 8px 简体字体约 1.7 MB，超过计算机默认 1 MB 的硬盘，只能在每次开机后第一次显示时联网下载（之后缓存在内存里直到重启）。服主调大 `computer_space_limit` 后，才能把字体存到本地并用 `utf8display.setConfig("fontPath", 路径)` 加载。12px 字体约 4 MB。
+  - 占地方：8px 字体每个汉字 4 格宽 × 3 行高，51×19 的计算机屏幕一行约 12 个汉字、最多 6 行。用显示器时配合 `setTextScale(0.5)`。
+  - 库只画到当前的 `term`：输出到显示器要先 `term.redirect(mon)`，画完再恢复。
+  - 只有交给 `utf8display.print`/`write`/`blit` 的文字能显示中文。`error`、`printError`、程序崩溃信息、`read()` 仍然走原生终端，必须用英文；中文也无法通过 `read()` 输入，需要单独的输入方案。
+  - 字体加载失败时库会直接 `error()`，而且它的报错信息是中文（显示为乱码）。调用时用 `pcall` 包住，失败就退回英文显示。
+  - 安装：`wget https://git.liulikeji.cn/xingluo/ComputerCraft-Utf8/raw/branch/main/utf8display/utf8display.lua utf8display.lua`，程序里 `require("utf8display")`。不要用该库 README 里每次运行 `load(http.get(...).readAll())()` 的写法：明文 HTTP 下载并执行远程代码，内容随时可能变（见 `security.md`）。
+  - 该仓库没有许可证文件：回答里只给链接和用法，不要把库的源码复制进来。
+
+```lua
+-- 中文界面示例：用户已确认使用 utf8display（前提见上）
+local mon = peripheral.find("monitor") or error("No monitor attached", 0)
+local has_lib, utf8display = pcall(require, "utf8display")
+
+-- zh 用 utf8display 绘制；没装库、HTTP 关闭或字体下载失败时，用原生 print 显示 en
+local function show(zh, en, fg, bg)
+    if has_lib and pcall(utf8display.print, zh, fg, bg) then return end
+    print(en)
+end
+
+mon.setTextScale(0.5)
+local old = term.redirect(mon)
+term.setBackgroundColour(colours.black)
+term.clear()
+term.setCursorPos(1, 1)
+show("仓库状态", "Storage status", colours.yellow, colours.black)
+show("铁锭: 1024", "Iron ingot: 1024", colours.white, colours.black)
+term.redirect(old)
+```
+
 - **后台任务**：高级计算机上 shell 程序 `bg <程序>` 在新标签页后台运行另一个程序（如键盘服务、网络监听），主程序继续前台运行；或者在同一程序内用 `parallel`。
 - 复杂界面（按钮、列表、滚动、布局）可考虑成熟的第三方 UI 框架（如 Basalt），比手写事件分发省事；它们一般接管主事件循环，事件要通过框架提供的接口注册。
 

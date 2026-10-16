@@ -11,7 +11,12 @@
 3. Reads the `luac -l` listing of each block: assigning a global is an error
    (programs must use `local`), and reading a global must name a standard Lua
    or CC: Tweaked global (catches typos such as `pirnt` or `textutil`).
-4. Checks SKILL.md structure: front matter, line budget, and that every
+4. Checks that string literals in those blocks are ASCII only: CC terminals
+   and monitors cannot display Chinese (or other non-ASCII) text, so example
+   messages for print/error/printError must be English. Comments may use
+   any language. Blocks that load the utf8display font library (which draws
+   Chinese with pixel glyphs) are exempt.
+5. Checks SKILL.md structure: front matter, line budget, and that every
    `references/*.md` it mentions exists.
 
 Requirements: Python 3.8+, Lua 5.2 compiler (`luac5.2` or `luac` 5.2;
@@ -66,6 +71,7 @@ STD_GLOBALS = {
     # APIs that only exist on some devices or under the shell
     "commands", "turtle", "pocket", "shell", "multishell", "rs",
 }
+UTF8DISPLAY_RE = re.compile(r"""require\W*["']utf8display["']""")
 GLOBAL_ACCESS_RE = re.compile(r"\b(GETTABUP|SETTABUP)\b.*;\s*_ENV \"(\w+)\"")
 
 
@@ -94,8 +100,11 @@ def load_api(offline):
     return api
 
 
-def strip_strings_and_comments(src):
-    """Blank out Lua string literals and comments, keeping line structure."""
+def strip_strings_and_comments(src, strings=None):
+    """Blank out Lua string literals and comments, keeping line structure.
+
+    If `strings` is a list, (offset, literal) is appended for each string literal.
+    """
     out, i, n = [], 0, len(src)
     long_open = re.compile(r"\[(=*)\[")
     while i < n:
@@ -114,12 +123,16 @@ def strip_strings_and_comments(src):
             j = i + 1
             while j < n and src[j] != c and src[j] != "\n":
                 j += 2 if src[j] == "\\" else 1
+            if strings is not None:
+                strings.append((i, src[i:j + 1]))
             out.append('""' + " " * max(0, j - i - 1))
             i = j + 1
         elif long_open.match(src, i):
             m = long_open.match(src, i)
             end = src.find("]" + m.group(1) + "]", m.end())
             end = n if end < 0 else end + len(m.group(1)) + 2
+            if strings is not None:
+                strings.append((i, src[i:end]))
             out.append('""' + re.sub(r"[^\n]", " ", src[i + 2:end]))
             i = end
         else:
@@ -145,6 +158,15 @@ def check_api_usage(code, api):
         for m in re.finditer(rf"(?<![\w.:]){g}\s*\(", code):
             errors.append(f"line {code[: m.start()].count(chr(10)) + 1}: {g} does not exist in CC: Tweaked")
     return errors
+
+
+def check_ascii_strings(code):
+    if UTF8DISPLAY_RE.search(code):
+        return []
+    strings = []
+    strip_strings_and_comments(code, strings)
+    return [f"line {code[:pos].count(chr(10)) + 1}: non-ASCII string {lit} - CC cannot display it, use English"
+            for pos, lit in strings if not lit.isascii()]
 
 
 def check_globals(luac, src_file, api):
@@ -198,6 +220,7 @@ def check_code_blocks(luac, api):
                 else:
                     errors += check_globals(luac, src_file, api)
                 errors += check_api_usage(body, api)
+                errors += check_ascii_strings(body)
                 if errors:
                     failures += 1
                     print(f"FAIL {md.relative_to(ROOT)}:{start}: {errors[:5]}")

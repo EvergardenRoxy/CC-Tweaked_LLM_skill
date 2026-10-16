@@ -76,7 +76,7 @@ local function ensure_fuel(min)
     return turtle.getFuelLevel() >= min
 end
 
-if not ensure_fuel(200) then error("燃料不足，请放入煤炭", 0) end
+if not ensure_fuel(200) then error("Not enough fuel, add coal", 0) end
 ```
 
 ## 工具与升级
@@ -95,36 +95,36 @@ local function forward()
     for _ = 1, 30 do
         if turtle.forward() then return true end
         if turtle.detect() then
-            if not turtle.dig() then return false, "无法挖掉前方方块" end
+            if not turtle.dig() then return false, "Cannot dig block in front" end
         else
             turtle.attack()
         end
     end
-    return false, "前进失败（燃料或阻挡）"
+    return false, "Cannot move forward (fuel or obstruction)"
 end
 
 local function up()
     for _ = 1, 30 do
         if turtle.up() then return true end
         if turtle.detectUp() then
-            if not turtle.digUp() then return false, "无法挖掉上方方块" end
+            if not turtle.digUp() then return false, "Cannot dig block above" end
         else
             turtle.attackUp()
         end
     end
-    return false, "上升失败"
+    return false, "Cannot move up"
 end
 
 local function down()
     for _ = 1, 30 do
         if turtle.down() then return true end
         if turtle.detectDown() then
-            if not turtle.digDown() then return false, "无法挖掉下方方块" end
+            if not turtle.digDown() then return false, "Cannot dig block below" end
         else
             turtle.attackDown()
         end
     end
-    return false, "下降失败"
+    return false, "Cannot move down"
 end
 
 local ok, err = forward()

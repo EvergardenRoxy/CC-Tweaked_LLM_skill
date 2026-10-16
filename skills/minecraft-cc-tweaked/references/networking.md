@@ -61,13 +61,13 @@ end
 -- 客户端
 peripheral.find("modem", rednet.open)
 local server = rednet.lookup("demo", "server1")
-if not server then error("找不到 server1（服务端是否在运行、是否在范围内？）", 0) end
+if not server then error("server1 not found (is the server running and in range?)", 0) end
 rednet.send(server, { cmd = "ping" }, "demo")
 local id, reply = rednet.receive("demo", 5)
 if id == server and reply then
     print("pong", reply.time)
 else
-    printError("超时")
+    printError("Timed out")
 end
 ```
 
@@ -84,7 +84,7 @@ end
 接收：事件 `modem_message, 调制解调器名, 信道, 回复信道, 消息, 距离`（跨维度时距离为 `nil`）。
 
 ```lua
-local modem = peripheral.find("modem") or error("没有调制解调器", 0)
+local modem = peripheral.find("modem") or error("No modem attached", 0)
 modem.open(43)
 modem.transmit(15, 43, "Hello")
 local event, side, channel, reply, message, distance
@@ -127,7 +127,7 @@ WebSocket：`ws.send(消息 [, 二进制])`、`ws.receive([超时])` → `消息
 
 ```lua
 local res, err = http.get("https://example.com/data.json")
-if not res then error("请求失败: " .. tostring(err), 0) end
+if not res then error("Request failed: " .. tostring(err), 0) end
 local body = res.readAll()
 res.close()
 local data = textutils.unserialiseJSON(body)
