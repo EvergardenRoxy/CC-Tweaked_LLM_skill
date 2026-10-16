@@ -14,7 +14,8 @@
 4. Checks that string literals in those blocks are ASCII only: CC terminals
    and monitors cannot display Chinese (or other non-ASCII) text, so example
    messages for print/error/printError must be English. Comments may use
-   any language.
+   any language. Blocks that load the utf8display font library (which draws
+   Chinese with pixel glyphs) are exempt.
 5. Checks SKILL.md structure: front matter, line budget, and that every
    `references/*.md` it mentions exists.
 
@@ -70,6 +71,7 @@ STD_GLOBALS = {
     # APIs that only exist on some devices or under the shell
     "commands", "turtle", "pocket", "shell", "multishell", "rs",
 }
+UTF8DISPLAY_RE = re.compile(r"""require\W*["']utf8display["']""")
 GLOBAL_ACCESS_RE = re.compile(r"\b(GETTABUP|SETTABUP)\b.*;\s*_ENV \"(\w+)\"")
 
 
@@ -159,6 +161,8 @@ def check_api_usage(code, api):
 
 
 def check_ascii_strings(code):
+    if UTF8DISPLAY_RE.search(code):
+        return []
     strings = []
     strip_strings_and_comments(code, strings)
     return [f"line {code[:pos].count(chr(10)) + 1}: non-ASCII string {lit} - CC cannot display it, use English"

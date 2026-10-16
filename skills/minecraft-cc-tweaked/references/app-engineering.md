@@ -436,8 +436,38 @@ restore_palette()
 if not ok and err ~= "Terminated" then printError(err) end
 ```
 
-- **中文显示**：CC 的终端和显示器只能显示自带的 256 个字符（ASCII + 拉丁字母 + 图形块字符），**不能直接显示中文**。`print("你好")` 会显示成乱码，`#"你好"` 是 6（字节数）而不是 2。可选方案：界面文字用英文/拼音；用 `utf8.len` 计算字符数；需要中文时使用社区的点阵字体渲染库（用 2×3 像素的图形字符拼出汉字，占用多个字符格，需要高级显示器和较小的文字缩放）。
-- 用户输入的中文同样无法通过 `read()` 正常输入，需要单独的输入方案。
+- **中文显示**：CC 的终端和显示器只能显示自带的 256 个字符（ASCII + 拉丁字母 + 图形块字符），**不能直接显示中文**。`print("你好")` 会显示成乱码，`#"你好"` 是 6（字节数）而不是 2（字符数用 `utf8.len`）。**默认假设用户没有安装中文字体库**：界面文字用英文/拼音，并告诉用户原因。
+- 用户明确想要中文界面时，提示用户可以使用社区库 **utf8display**（<https://git.liulikeji.cn/xingluo/ComputerCraft-Utf8/src/branch/main/utf8display>）：用 2×3 像素的图形字符拼出汉字，再用 `term.blit` 绘制。先向用户说明下面的前提，用户确认后再写中文界面：
+  - 需要 CC: Tweaked 1.94.0+（用到 `colors.toBlit`）；服务器开启 HTTP，且没有拦截 `git.liulikeji.cn`。
+  - 字体文件很大：默认的 8px 简体字体约 1.7 MB，超过计算机默认 1 MB 的硬盘，只能在每次开机后第一次显示时联网下载（之后缓存在内存里直到重启）。服主调大 `computer_space_limit` 后，才能把字体存到本地并用 `utf8display.setConfig("fontPath", 路径)` 加载。12px 字体约 4 MB。
+  - 占地方：8px 字体每个汉字 4 格宽 × 3 行高，51×19 的计算机屏幕一行约 12 个汉字、最多 6 行。用显示器时配合 `setTextScale(0.5)`。
+  - 库只画到当前的 `term`：输出到显示器要先 `term.redirect(mon)`，画完再恢复。
+  - 只有交给 `utf8display.print`/`write`/`blit` 的文字能显示中文。`error`、`printError`、程序崩溃信息、`read()` 仍然走原生终端，必须用英文；中文也无法通过 `read()` 输入，需要单独的输入方案。
+  - 字体加载失败时库会直接 `error()`，而且它的报错信息是中文（显示为乱码）。调用时用 `pcall` 包住，失败就退回英文显示。
+  - 安装：`wget https://git.liulikeji.cn/xingluo/ComputerCraft-Utf8/raw/branch/main/utf8display/utf8display.lua utf8display.lua`，程序里 `require("utf8display")`。不要用该库 README 里每次运行 `load(http.get(...).readAll())()` 的写法：明文 HTTP 下载并执行远程代码，内容随时可能变（见 `security.md`）。
+  - 该仓库没有许可证文件：回答里只给链接和用法，不要把库的源码复制进来。
+
+```lua
+-- 中文界面示例：用户已确认使用 utf8display（前提见上）
+local mon = peripheral.find("monitor") or error("No monitor attached", 0)
+local has_lib, utf8display = pcall(require, "utf8display")
+
+-- zh 用 utf8display 绘制；没装库、HTTP 关闭或字体下载失败时，用原生 print 显示 en
+local function show(zh, en, fg, bg)
+    if has_lib and pcall(utf8display.print, zh, fg, bg) then return end
+    print(en)
+end
+
+mon.setTextScale(0.5)
+local old = term.redirect(mon)
+term.setBackgroundColour(colours.black)
+term.clear()
+term.setCursorPos(1, 1)
+show("仓库状态", "Storage status", colours.yellow, colours.black)
+show("铁锭: 1024", "Iron ingot: 1024", colours.white, colours.black)
+term.redirect(old)
+```
+
 - **后台任务**：高级计算机上 shell 程序 `bg <程序>` 在新标签页后台运行另一个程序（如键盘服务、网络监听），主程序继续前台运行；或者在同一程序内用 `parallel`。
 - 复杂界面（按钮、列表、滚动、布局）可考虑成熟的第三方 UI 框架（如 Basalt），比手写事件分发省事；它们一般接管主事件循环，事件要通过框架提供的接口注册。
 

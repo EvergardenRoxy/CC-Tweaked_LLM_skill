@@ -64,7 +64,7 @@ Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 
 | `networking.md` | rednet、modem、GPS 星座搭建、HTTP/WebSocket、安全提示 |
 | `events-and-concurrency.md` | 全部事件参数表、事件循环、计时器、`parallel`、协程、`terminate`、性能 |
 | `templates.md` | 14 个参考程序及其背后的设计决策表（仓储统计、熔炉阵列、分拣、伐木、隧道、农场、遥控、触摸面板、能量控制、储罐、密码门、网络音乐、断点续跑、多扬声器同步播放器） |
-| `app-engineering.md` | 大型程序工程化：模块结构、可靠的异步 HTTP（请求标记、超时看门狗、选择性重试、分块读取、Range 大文件下载）、安装器与更新器、设置持久化与校验、外设选择与热插拔、功能探测、日志脱敏、调色板恢复、中文显示限制、发布与 CI |
+| `app-engineering.md` | 大型程序工程化：模块结构、可靠的异步 HTTP（请求标记、超时看门狗、选择性重试、分块读取、Range 大文件下载）、安装器与更新器、设置持久化与校验、外设选择与热插拔、功能探测、日志脱敏、调色板恢复、中文显示限制与 utf8display 点阵字体库、发布与 CI |
 | `troubleshooting.md` | 51 条常见错误对照、报错信息速查、排错流程、游戏内工具 |
 | `config-and-versions.md` | 服务器配置、`/computercraft` 命令、数据包、版本差异、Lua 兼容性、资料来源与已知出入 |
 
