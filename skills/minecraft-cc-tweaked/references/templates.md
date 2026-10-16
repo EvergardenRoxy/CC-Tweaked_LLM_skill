@@ -45,7 +45,7 @@
 local REFRESH = 10            -- 秒
 local BATCH = 32              -- 每批并发扫描的箱子数
 
-local mon = peripheral.find("monitor") or error("没有显示器", 0)
+local mon = peripheral.find("monitor") or error("No monitor attached", 0)
 mon.setTextScale(0.5)
 
 local function scan()
@@ -109,11 +109,11 @@ local OUTPUT = "minecraft:chest_2"
 local PER_FURNACE = 8                 -- 每台熔炉补到多少个原料
 local INTERVAL = 5
 
-local input = peripheral.wrap(INPUT) or error("找不到输入箱 " .. INPUT, 0)
-local fuel = peripheral.wrap(FUEL) or error("找不到燃料箱 " .. FUEL, 0)
-local output = peripheral.wrap(OUTPUT) or error("找不到输出箱 " .. OUTPUT, 0)
+local input = peripheral.wrap(INPUT) or error("Input chest not found: " .. INPUT, 0)
+local fuel = peripheral.wrap(FUEL) or error("Fuel chest not found: " .. FUEL, 0)
+local output = peripheral.wrap(OUTPUT) or error("Output chest not found: " .. OUTPUT, 0)
 local furnaces = { peripheral.find("minecraft:furnace") }
-if #furnaces == 0 then error("网络上没有熔炉", 0) end
+if #furnaces == 0 then error("No furnaces on the network", 0) end
 
 local function first_slot(inv)
     for slot, item in pairs(inv.list()) do
@@ -139,7 +139,7 @@ local function service(furnace)
     end
 end
 
-print(("管理 %d 台熔炉，Ctrl+T 停止"):format(#furnaces))
+print(("Managing %d furnaces, Ctrl+T to stop"):format(#furnaces))
 while true do
     local tasks = {}
     for _, f in ipairs(furnaces) do
@@ -167,7 +167,7 @@ local RULES = {
     { tag = "c:ores", to = "minecraft:chest_3" },
 }
 
-local input = peripheral.wrap(INPUT) or error("找不到输入箱", 0)
+local input = peripheral.wrap(INPUT) or error("Input chest not found", 0)
 local tag_cache = {}
 
 local function tags_of(slot, item)
@@ -273,7 +273,7 @@ end
 
 ```lua
 -- tunnel2.lua
-local length = tonumber((...)) or error("用法: tunnel2 <长度>", 0)
+local length = tonumber((...)) or error("Usage: tunnel2 <length>", 0)
 
 local function fuel_ok(need)
     local level = turtle.getFuelLevel()
@@ -323,13 +323,13 @@ end
 
 refuel_all()
 if not fuel_ok(length * 2 + 10) then
-    error(("燃料不足：需要约 %d"):format(length * 2 + 10), 0)
+    error(("Not enough fuel: need about %d"):format(length * 2 + 10), 0)
 end
 
 local dug = 0
 while dug < length do
     if not dig_forward() then
-        printError("前方无法通过，停止")
+        printError("Path blocked, stopping")
         break
     end
     dug = dug + 1
@@ -339,7 +339,7 @@ while dug < length do
         unload()
         turtle.turnLeft()
         turtle.turnLeft()
-        for _ = 1, dug do assert(dig_forward(), "返回挖掘点失败") end
+        for _ = 1, dug do assert(dig_forward(), "Failed to return to dig position") end
     end
 end
 
@@ -347,7 +347,7 @@ go_back(dug)
 unload()
 turtle.turnLeft()
 turtle.turnLeft()
-print("完成，挖了 " .. dug .. " 格")
+print("Done, dug " .. dug .. " blocks")
 ```
 
 燃料检查只计算了单程往返（`长度 × 2`）；背包满时中途回去卸货还会多耗燃料，长隧道请多备燃料或在起点箱子旁补充。
@@ -387,7 +387,7 @@ end
 while true do
     local level = turtle.getFuelLevel()
     if level ~= "unlimited" and level < LENGTH * 2 then
-        error("燃料不足", 0)
+        error("Out of fuel", 0)
     end
     for _ = 1, LENGTH do
         assert(turtle.forward())
@@ -413,9 +413,9 @@ local SIDE = "back"
 local PROTOCOL = "rs_switch"
 
 peripheral.find("modem", rednet.open)
-if not rednet.isOpen() then error("没有调制解调器", 0) end
+if not rednet.isOpen() then error("No modem attached", 0) end
 rednet.host(PROTOCOL, "switch_" .. os.getComputerID())
-print("等待命令，ID =", os.getComputerID())
+print("Waiting for commands, ID =", os.getComputerID())
 
 while true do
     local id, msg = rednet.receive(PROTOCOL)
@@ -435,12 +435,12 @@ end
 local PROTOCOL = "rs_switch"
 local cmd = ...
 if cmd ~= "on" and cmd ~= "off" and cmd ~= "toggle" then
-    error("用法: switch <on|off|toggle>", 0)
+    error("Usage: switch <on|off|toggle>", 0)
 end
 
 peripheral.find("modem", rednet.open)
 local servers = { rednet.lookup(PROTOCOL) }
-if #servers == 0 then error("找不到开关服务端", 0) end
+if #servers == 0 then error("No switch server found", 0) end
 
 for _, server in ipairs(servers) do
     rednet.send(server, cmd, PROTOCOL)
@@ -448,7 +448,7 @@ for _, server in ipairs(servers) do
     if id and type(reply) == "table" then
         print(("#%d -> %s"):format(id, reply.state and "ON" or "OFF"))
     else
-        printError(("#%d 无响应"):format(server))
+        printError(("#%d did not respond"):format(server))
     end
 end
 ```
@@ -459,8 +459,8 @@ end
 
 ```lua
 -- panel.lua
-local mon = peripheral.find("monitor") or error("没有显示器", 0)
-if not mon.isColour() then error("需要高级显示器", 0) end
+local mon = peripheral.find("monitor") or error("No monitor attached", 0)
+if not mon.isColour() then error("Advanced monitor required", 0) end
 mon.setTextScale(1)
 
 local buttons = {
@@ -511,7 +511,7 @@ local LOW, HIGH = 0.20, 0.90
 local ON_SIGNAL = true
 local INTERVAL = 2
 
-local cell = peripheral.find("energy_storage") or error("没有能量存储外设", 0)
+local cell = peripheral.find("energy_storage") or error("No energy storage peripheral", 0)
 local mon = peripheral.find("monitor")
 local running = redstone.getOutput(SIDE) == ON_SIGNAL
 local last_energy, last_time = cell.getEnergy(), os.clock()
@@ -550,7 +550,7 @@ end
 
 ```lua
 -- tanks.lua
-local mon = peripheral.find("monitor") or error("没有显示器", 0)
+local mon = peripheral.find("monitor") or error("No monitor attached", 0)
 mon.setTextScale(0.5)
 
 local function bar(y, label, ratio, colour)
@@ -624,12 +624,12 @@ end
 
 ```lua
 -- play.lua
-local url = ... or error("用法: play <dfpwm 文件网址>", 0)
+local url = ... or error("Usage: play <dfpwm-url>", 0)
 local dfpwm = require("cc.audio.dfpwm")
-local speaker = peripheral.find("speaker") or error("没有扬声器", 0)
+local speaker = peripheral.find("speaker") or error("No speaker attached", 0)
 
 local res, err = http.get(url, nil, true)       -- 二进制模式
-if not res then error("下载失败: " .. tostring(err), 0) end
+if not res then error("Download failed: " .. tostring(err), 0) end
 
 local decoder = dfpwm.make_decoder()
 while true do
@@ -691,13 +691,13 @@ DFPWM 基本事实：48 kHz、每个样本 1 bit，所以 **1 秒 = 6000 字节*
 
 ```lua
 -- player.lua
-local path = ... or error("用法: player <文件.dfpwm>", 0)
+local path = ... or error("Usage: player <file.dfpwm>", 0)
 local dfpwm = require("cc.audio.dfpwm")
 
 local BYTES_PER_SECOND = 6000
 local CHUNK = 16 * 1024                 -- 每块约 2.7 秒
 
-local h = fs.open(path, "rb") or error("无法打开 " .. path, 0)
+local h = fs.open(path, "rb") or error("Cannot open " .. path, 0)
 local data = h.readAll()
 h.close()
 
@@ -780,13 +780,13 @@ local function key_loop()
     end
 end
 
-print(("播放 %s，时长 %d 秒"):format(path, math.floor(#data / BYTES_PER_SECOND)))
-print("空格 暂停  ←/→ 跳转  ↑/↓ 音量  Q 退出")
+print(("Playing %s, %d seconds"):format(path, math.floor(#data / BYTES_PER_SECOND)))
+print("Space pause  Left/Right seek  Up/Down volume  Q quit")
 status()
 parallel.waitForAny(play_loop, key_loop)
 for _, sp in ipairs(speakers()) do pcall(sp.stop) end
 print()
-print("结束")
+print("Finished")
 ```
 
 要点：

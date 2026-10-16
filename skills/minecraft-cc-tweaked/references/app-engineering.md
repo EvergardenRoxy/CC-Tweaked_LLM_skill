@@ -163,7 +163,7 @@ return net
 local net = require("net")
 local body, err = net.request { url = "https://example.com/api/status", timeout = 10, retries = 2 }
 if not body then
-    printError("请求失败: " .. tostring(err))
+    printError("Request failed: " .. tostring(err))
 else
     local data = textutils.unserialiseJSON(body)
     print(data and "ok" or "not json")
@@ -188,7 +188,7 @@ end
 -- installer.lua：用法 installer <清单网址>
 -- 清单是一个返回表的 Lua 文件：
 -- return { version = "1.2.0", base = "https://example.com/myapp/", files = { "startup.lua", "app/net.lua" } }
-local manifest_url = ... or error("用法: installer <清单网址>", 0)
+local manifest_url = ... or error("Usage: installer <manifest-url>", 0)
 
 local function get(url)
     for i = 1, 3 do
@@ -200,17 +200,17 @@ local function get(url)
             if code >= 200 and code < 300 and body and #body > 0 then return body end
             err = "HTTP " .. code
         end
-        printError(("下载失败 %s (%s)，重试 %d/3"):format(url, tostring(err), i))
+        printError(("Download failed %s (%s), retry %d/3"):format(url, tostring(err), i))
         sleep(i)
     end
-    error("无法下载 " .. url, 0)
+    error("Cannot download " .. url, 0)
 end
 
 local source = get(manifest_url)
 local chunk, load_err = load(source, "=manifest", "t", {})
-if not chunk then error("清单无法解析: " .. load_err, 0) end
+if not chunk then error("Cannot parse manifest: " .. load_err, 0) end
 local manifest = chunk()
-if type(manifest) ~= "table" or type(manifest.files) ~= "table" then error("清单格式错误", 0) end
+if type(manifest) ~= "table" or type(manifest.files) ~= "table" then error("Invalid manifest format", 0) end
 
 -- 1. 全部下载到内存并校验
 local downloads, needed, replaced = {}, 0, 0
@@ -219,7 +219,7 @@ for i, path in ipairs(manifest.files) do
     local body = get(manifest.base .. path)
     if path:match("%.lua$") then
         local ok, err = load(body, "=" .. path)
-        if not ok then error(path .. " 无法编译: " .. err, 0) end
+        if not ok then error(path .. " failed to compile: " .. err, 0) end
     end
     downloads[#downloads + 1] = { path = "/" .. path, body = body }
     needed = needed + #body
@@ -231,7 +231,7 @@ end
 -- 2. 检查空间
 local free = fs.getFreeSpace("/")
 if free ~= "unlimited" and free + replaced < needed then
-    error(("空间不足：需要 %d 字节，可用 %d 字节"):format(needed, free + replaced), 0)
+    error(("Not enough space: need %d bytes, have %d bytes"):format(needed, free + replaced), 0)
 end
 
 -- 3. 写入
@@ -246,7 +246,7 @@ end
 local h = fs.open("/.version", "w")
 h.write(tostring(manifest.version or "?"))
 h.close()
-print("安装完成，版本 " .. tostring(manifest.version) .. "。按任意键重启")
+print("Installed version " .. tostring(manifest.version) .. ". Press any key to reboot")
 os.pullEvent("key")
 os.reboot()
 ```
@@ -289,18 +289,18 @@ end
 local function load_config()
     if not fs.exists(PATH) then return normalize(nil), nil end
     local h = fs.open(PATH, "r")
-    if not h then return normalize(nil), "无法打开配置文件" end
+    if not h then return normalize(nil), "Cannot open config file" end
     local text = h.readAll()
     h.close()
     local raw, err = textutils.unserialiseJSON(text)
-    if raw == nil then return normalize(nil), "配置文件损坏，已使用默认值: " .. tostring(err) end
+    if raw == nil then return normalize(nil), "Config file corrupt, using defaults: " .. tostring(err) end
     return normalize(raw), nil
 end
 
 local function save_config(cfg)
     local text = textutils.serialiseJSON(normalize(cfg))
     local free = fs.getFreeSpace("/")
-    if free ~= "unlimited" and free < #text then return false, "磁盘空间不足" end
+    if free ~= "unlimited" and free < #text then return false, "Not enough disk space" end
     if not fs.exists("/data") then fs.makeDir("/data") end
     local h, err = fs.open(PATH, "w")
     if not h then return false, err end
@@ -398,7 +398,7 @@ local function safely(action, ...)
     local ok, err = pcall(action, ...)
     if not ok then
         log("error", err)
-        printError("操作失败: " .. tostring(err))
+        printError("Action failed: " .. tostring(err))
     end
     return ok
 end

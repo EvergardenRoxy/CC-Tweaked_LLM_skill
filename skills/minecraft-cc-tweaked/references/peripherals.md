@@ -133,7 +133,7 @@ for name, count in pairs(totals) do print(count, name) end
 - 刷新频繁的界面先画到 `window`（隐藏）再一次显示，避免闪烁。
 
 ```lua
-local mon = peripheral.find("monitor") or error("没有显示器", 0)
+local mon = peripheral.find("monitor") or error("No monitor attached", 0)
 mon.setTextScale(1)
 local function center(y, text, fg)
     local w = mon.getSize()
@@ -169,7 +169,7 @@ center(3, "OK", colours.lime)
 
 ```lua
 local dfpwm = require("cc.audio.dfpwm")
-local speaker = peripheral.find("speaker") or error("没有扬声器", 0)
+local speaker = peripheral.find("speaker") or error("No speaker attached", 0)
 local decoder = dfpwm.make_decoder()
 for chunk in io.lines("/music.dfpwm", 16 * 1024) do
     local buffer = decoder(chunk)
