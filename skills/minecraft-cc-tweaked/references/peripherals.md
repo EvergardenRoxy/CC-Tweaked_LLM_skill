@@ -147,6 +147,32 @@ center(1, "Status", colours.yellow)
 center(3, "OK", colours.lime)
 ```
 
+**更细的进度条和图形**：终端和显示器只认 CC 自带的 256 个字符，Unicode 字符（包括盲文点字、方块元素）会按 UTF-8 字节显示成 2～3 个乱码。CC 自己的字符 128～159（`"\128"`～`"\159"`）是 2×3 小方块组合的绘图字符：每个字符的 6 个小格里，右下格总是背景色，其余 5 格按字符编号决定用文字色还是背景色。用它们可以把精度提高到半格（横向 2 份、纵向 3 份）；需要完整的像素绘图时可以用社区库（如 pixelbox），先核对它们的许可证。
+
+```lua
+-- Progress bar with half-cell steps: "\149" is the drawing character whose
+-- left column (3 of its 6 pixels) is in the text colour, the rest background.
+local function bar(target, x, y, width, ratio, fill, empty)
+    ratio = math.max(0, math.min(1, ratio))
+    local halves = math.floor(ratio * width * 2 + 0.5)
+    local full = math.floor(halves / 2)
+    target.setCursorPos(x, y)
+    target.setBackgroundColour(fill)
+    target.write((" "):rep(full))
+    target.setBackgroundColour(empty)
+    if halves % 2 == 1 and full < width then
+        target.setTextColour(fill)
+        target.write("\149")
+        full = full + 1
+    end
+    target.write((" "):rep(width - full))
+end
+
+local mon = peripheral.find("monitor") or error("No monitor attached", 0)
+bar(mon, 1, 1, 10, 0.75, colours.lime, colours.grey)
+bar(mon, 1, 2, 10, 0.95, colours.red, colours.grey)
+```
+
 ## 调制解调器 `modem`
 
 消息收发见 `networking.md`。有线调制解调器额外提供（无线的没有这些方法，先 `isWireless()` 判断）：
@@ -227,3 +253,26 @@ end
 2. 在 `lua` 交互环境中试调用：`p = peripheral.wrap("名")`，`p.方法()`，观察返回值（用 `textutils.serialise` 或 `require("cc.pretty").pretty_print` 打印表）。
 3. 把实际可用的方法名告诉 AI 再写程序。
 4. 只用通用外设方法（`list`、`pushItems`、`tanks`、`getEnergy`）的程序最可移植。
+5. 记下每个方法**是否会等待**：在 `lua` 里连续调用两次并用 `os.clock()` 对比，或在 cct-live 的 trace 里看 `peripheral_call` 和 `peripheral_return` 是否在不同的 tick。会等待的方法期间到达的事件会被丢掉，程序结构要按 `events-and-concurrency.md`“外设调用会丢事件”来设计。
+
+模组外设的几个共同点（CC: Tweaked 本身的行为，和具体模组无关）：
+
+- **字符串里的中文会变成 `?`**：Lua 字符串是字节，模组从 Java 传来的文字里，U+00FF 以上的字符（中文等）进 Lua 时一律变成 `?`。需要原文时找模组另外提供的 UTF-8 字段（如下面聊天框的 `messageUtf8`）。
+- **同一个外设接了两次，事件会到两次**：外设直接贴在计算机上、又通过有线调制解调器接入时，计算机会把它当成两个外设（方向名和网络名各一个），它发出的事件（如聊天框的 `chat`）每次到达两次。程序要去重，或者只接一种方式。
+- **返回值单位和符号以实测为准**：例如转速可能带正负号表示方向。
+
+### 实测记录：Create 与 Advanced Peripherals
+
+以下是在 Minecraft 1.20.1、CC: Tweaked 1.120.2、Create 6.0.8、Advanced Peripherals 0.7.48r 上两次实测得到的（类型名、网络名以玩家游戏里 `peripheral.getNames()` / `getType` 为准；其他版本可能不同，用之前按上面的步骤核对）：
+
+| 外设（类型名） | 方法 | 实测结果 |
+|---|---|---|
+| 应力表 `Create_Stressometer` | `getStress()`、`getStressCapacity()` | 单位 SU |
+| 转速表 `Create_Speedometer` | `getSpeed()` | 带符号的 rpm（负数是反转） |
+| 转速控制器 `Create_RotationSpeedController` | `getTargetSpeed()`、`setTargetSpeed(rpm)` | 带符号；`setTargetSpeed` 不返回任何值（不要拿返回值判断成败，写完再 `getTargetSpeed` 核对）；超出 ±256 时**静默截断**，不报错；设成 0 即停止。应力超过容量时传动停转，转速读数变为 0 |
+| 聊天框 `chatBox` | 事件 `chat` | 参数依次为：玩家名、消息、UUID、是否隐藏（`isHidden`）、`messageUtf8`。用 `local ev = { os.pullEvent() }` 接住时，它们是 `ev[2]` 到 `ev[6]`。消息里的中文变成 `?`，要用 `messageUtf8` |
+| 聊天框 `chatBox` | `sendMessageToPlayer(消息, 玩家名 [, 前缀, 括号, 括号颜色, 范围, utf8Support])` | 成功返回 `true`；冷却中返回 `nil, "chatMessage is on cooldown"`，要排队稍后重发。发中文要把第 7 个参数 `utf8Support` 设为 `true`；聊天栏能显示中文，但计算机屏幕仍然不能 |
+| 聊天框 `chatBox` | `getOperationCooldown("chatMessage")` | 必须传参数，不传会报 `bad argument #1` |
+| 玩家探测器 `playerDetector` | `isPlayerInRange(范围, 玩家名)`、`getOnlinePlayers()` | 注意参数顺序：范围在前 |
+| 物品保险库 `create:item_vault` | 通用 `inventory` 方法 | 那次实测 `size()` 为 1620 格；`list()` 只返回非空格 |
+| 创造板条箱 `create:creative_crate` | 通用 `inventory` 方法 | 物品永远不会用完：测“缺料自动暂停”要请玩家换成普通箱子 |

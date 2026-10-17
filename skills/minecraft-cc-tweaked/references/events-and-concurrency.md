@@ -9,6 +9,7 @@
 - 事件循环模式
 - 计时器与闹钟
 - `parallel`
+- 外设调用会丢事件：看板 + 指令的标准结构
 - 协程与自定义调度
 - `terminate` 与退出
 - 性能与"Too long without yielding"
@@ -20,7 +21,7 @@
 - 每台计算机有一个事件队列（最多 256 个，溢出丢弃）。
 - `os.pullEvent(过滤)` 让出当前协程，直到出现**名字等于过滤**的事件；**不匹配的事件被丢弃**（对当前协程而言）。
 - `os.pullEventRaw` 同上，但不会因 `terminate` 自动终止。注意 `terminate` **即使设置了过滤也会返回**，要自己判断。
-- `sleep`、`rednet.receive`、`turtle.*`、外设方法、`http.get` 等内部都在 `pullEvent`，等待期间会吞掉其他事件。
+- `sleep`、`rednet.receive`、`turtle.*`、外设方法、`http.get` 等内部都在 `pullEvent`，等待期间会吞掉其他事件。外设方法里最容易被忽略：通用外设（箱子/储罐/能量方块的 `list`、`size`、`getItemDetail`、`pushItems`、`tanks`、`getEnergy`……）和大多数模组外设的方法都要等服务器在下一个游戏刻执行完，**这段时间里到达的聊天、触摸、计时器事件会被当前协程丢掉**（见“外设调用会丢事件”一节）。显示器和终端的方法不等待。
 - `parallel` 中每个函数有自己的事件副本，互不影响。
 
 ## 全部事件一览
@@ -94,7 +95,8 @@ while true do
 end
 ```
 
-- `{ os.pullEvent() }` 把全部返回值装进表，适合事件参数个数不同的情况。
+- `{ os.pullEvent() }` 把全部返回值装进表，适合事件参数个数不同的情况。`ev[1]` 是事件名，事件参数从 `ev[2]` 开始（上表“参数”一列的第 1 个是 `ev[2]`）。
+- 这个结构只在**处理分支里没有会等待的外设调用**时才不丢事件。上例的 `redraw` 只调用显示器方法，所以没问题；如果计时器分支里还要读箱子或模组外设，改用下面“外设调用会丢事件”一节的结构。
 - 每个计时器只触发一次；要周期执行就在处理时重新 `startTimer`。
 - 比较计时器 ID，避免别的计时器（比如库内部的）误触发。
 
@@ -106,8 +108,8 @@ end
 | `os.cancelTimer(id)` | |
 | `os.setAlarm(时间)` → id | 游戏内时间 0.0–24.0（如 `6.0` 为早上 6 点） |
 | `os.cancelAlarm(id)` | |
-| `os.clock()` | 计算机运行秒数（测耗时） |
-| `os.epoch("utc")` | 现实毫秒时间戳 |
+| `os.clock()` | 计算机运行的游戏刻数 × 0.05：以 0.05 秒为单位前进；两次让出之间（一段连续执行的 Lua 里）不变；服务器卡顿时比真实时间慢 |
+| `os.epoch("utc")` | 现实毫秒时间戳。判断“是否到时间了”、计算间隔和超时用它 |
 
 ## `parallel`
 
@@ -159,6 +161,92 @@ print("scanned", #invs, "inventories")
 ```
 
 上百个外设时分批（例如每批 64 个），避免事件队列（256）溢出导致卡住。
+
+## 外设调用会丢事件：看板 + 指令的标准结构
+
+一个协程在等外设方法返回时，只认这次调用的 `task_complete` 事件，别的事件对它来说就丢了。常见后果：
+
+- **指令偶尔没反应**：聊天指令、显示器触摸正好在读箱子/外设的那一刻到达，被丢掉；
+- **看板冻结**：计时器在外设调用期间到期，事件被丢，“收到计时器再设下一个”的循环从此再也等不到计时器。
+
+在 cct-run（运行的是 CC: Tweaked 1.120.2 本身的代码）里实测：同一个单循环程序每 0.5 秒读一次箱子和外设，同时收 20 条聊天指令，只处理了 11 条，而且计时器第一次触发后就丢了，轮询从此停止；改成下面的三协程结构，20 条全部处理。在真实游戏里的两次联合测试中，两个 AI 写的 Create 工厂控制程序都遇到了这两个现象。
+
+**结构**：把“等事件”和“调用会等待的外设方法”放进不同的协程。
+
+- **监听协程**：只 `os.pullEvent()`，把指令放进队列，**不调用任何会等待的外设方法**，所以一个事件都不会丢；
+- **工作协程**：从队列里取指令执行（可以调用外设方法）；每次等待前先检查队列，所以它忙的时候到达的唤醒事件丢了也没关系；
+- **轮询协程**：定时读外设、更新状态和画面（可以用 `sleep`，丢事件不影响别人）。
+
+`parallel` 里每个协程都会收到每个事件的副本，各自的等待互不影响，所以这样拆开后监听协程总能收到事件。
+
+```lua
+-- Dashboard + commands: three coroutines, so no command or timer is lost
+-- while a peripheral method waits for the server.
+local chest = peripheral.find("inventory") or error("No inventory found", 0)
+local mon = peripheral.find("monitor") or error("No monitor attached", 0)
+local OUTPUT_SIDE = "back"           -- redstone line that runs the machine
+
+local state = { items = 0, running = false, handled = 0 }
+local queue = {}                     -- commands waiting for the worker
+
+local function draw()
+    mon.clear()
+    mon.setCursorPos(1, 1)
+    mon.write(("Items %d"):format(state.items))
+    mon.setCursorPos(1, 2)
+    mon.write(state.running and "RUNNING" or "STOPPED")
+    mon.setCursorPos(1, 3)
+    mon.write(("Commands %d"):format(state.handled))
+end
+
+-- 1. Poller: reads peripherals (these calls wait a tick or more).
+local function poller()
+    while true do
+        local n = 0
+        for _, item in pairs(chest.list()) do n = n + item.count end
+        state.items = n
+        draw()
+        sleep(1)
+    end
+end
+
+-- 2. Listener: only takes events and queues them; it never calls a
+--    peripheral method that waits, so it never misses an event.
+local function listener()
+    while true do
+        local ev = { os.pullEvent() }
+        if ev[1] == "monitor_touch" or ev[1] == "chat" then
+            queue[#queue + 1] = ev
+            os.queueEvent("work")
+        end
+    end
+end
+
+-- 3. Worker: runs queued commands. It checks the queue before every wait,
+--    so a "work" event lost while it was busy does not lose a command.
+local function worker()
+    while true do
+        while #queue > 0 do
+            local ev = table.remove(queue, 1)
+            if ev[1] == "monitor_touch" then
+                state.running = not state.running
+            elseif ev[1] == "chat" and ev[3] == "!stop" then
+                state.running = false
+            end
+            redstone.setOutput(OUTPUT_SIDE, state.running)
+            state.handled = state.handled + 1
+            draw()
+        end
+        os.pullEvent("work")
+    end
+end
+
+parallel.waitForAny(poller, listener, worker)
+```
+
+- 显示器和终端的方法不等待，可以在任何协程里画；共享的 `state`、`queue` 是普通表，协程之间不会被打断（只在让出时切换），不需要加锁。
+- 不要在监听协程里调用 `chest.list()`、`setTargetSpeed`、`sendMessageToPlayer` 这类方法；要调用就放进队列交给工作协程。
+- 只有显示器按钮、没有轮询外设的程序（如模板 8），单个事件循环就够了。
 
 ## 协程与自定义调度
 
