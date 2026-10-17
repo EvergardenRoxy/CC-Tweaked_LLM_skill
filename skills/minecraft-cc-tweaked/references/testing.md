@@ -119,7 +119,7 @@
 - **只在用户要求或同意时才接管**，并且只接管用户指定的那台电脑。接管时用户会在聊天栏看到提示，可以随时用 `/cctlive detach <id>` 收回。如果工具返回 `revoked`，立即停止，并先问用户再说。
 - **输入、点击、开关机、写文件和 `cct_live_lua` 都会改变用户的世界**：只做用户同意的操作。`cct_live_lua` 的代码拥有这台电脑的全部权限，没有得到同意时只做只读检查。不要为了“测试”而删除或覆盖用户的文件。
 - `terminate` 等同于玩家长按 Ctrl+T：程序会结束，或者跳出事件循环、去执行后面的代码，这可能暴露出平时走不到的问题。没有必要时不要发；发了的话，要在报告里说明之后的现象是它引起的。
-- **测完恢复原状**：自己写入的临时文件要删除；为了实验改动过的文件要还原，并在报告里写明。
+- **测完恢复原状**：改动文件之前先 `cct_live_snapshot {op: "save"}` 保存快照；结束时用 `diff` 看改动了什么，用 `restore` 恢复，再 `diff` 一次确认 `identical`，并在报告里写明。不要自己去复制存档文件夹。没有快照工具时（旧版本），自己写入的临时文件要删除，改动过的文件要还原。
 - 写文件需要用户在 mod 的配置里打开 `files.allow_write`（`cct_live_attach` 返回的 `files_write` 会告诉你是否已打开）。没打开就请用户手动修改，不要劝用户打开。
 - **用完就释放**：`cct_live_detach`。
 
@@ -128,23 +128,24 @@
 - 检查状态用 `cct_live_status`（返回很小）；等待用 `cct_live_wait`（在服务端等待，只占一次调用）。**不要自己 sleep 之后反复看屏幕。**
 - 查 trace 时先用 `summary: true` 看各类记录的数量，再用 `kind` + `after: <seq>` 只取需要的那一段。
 - `cct_live_screen` 默认只返回文字；只有需要找按钮时才加 `regions: true`，需要颜色时才加 `colors: true`。
-- **在电脑上查事实用 `cct_live_lua`**：一次调用就能运行一段 Lua，拿到打印内容和返回值，比如文件大小、用 `load()` 检查语法、`peripheral.getMethods`。临时文件会自动删除。不要再手动“写脚本 → 运行 → 读输出 → 删除”，那样一个事实要花 4 次调用，还容易在被测电脑上留下文件。
+- **在电脑上查事实用 `cct_live_lua`**：一次调用就能运行一段 Lua，拿到打印内容和返回值，比如文件大小、用 `load()` 检查语法、`peripheral.getMethods`。临时文件会自动删除。不要再手动“写脚本 → 运行 → 读输出 → 删除”，那样一个事实要花 4 次调用，还容易在被测电脑上留下文件。超时时会返回 `pending` 名字，之后用 `cct_live_lua {result: 名字}` 取回结果，不要重新运行。
 - 想知道服务器到底返回了什么：`handle` 记录里如果有 `body: N`，用 `cct_live_body` 读完整正文，不用自己再去请求一遍。
+- 只关心某个文件或 URL 时，给 `cct_live_trace` 传 `contains`（例如 `contains: "User.lua"`），一次拿到它的请求、读取和写入记录。
 
 ### 4.3 流程
 
-1. `cct_live_computers` 找到电脑，然后 `cct_live_attach`（长时间测试时可以传 `lease_seconds`），记下返回的 `last_seq` 和 `monitors`。
+1. `cct_live_computers` 找到电脑，然后 `cct_live_attach`（长时间测试时可以传 `lease_seconds`），记下返回的 `last_seq` 和 `monitors`。如果之后要改动文件，先 `cct_live_snapshot {op: "save"}`。
 2. 执行操作：
    - `cct_live_type`：输入 shell 命令或程序需要的文字，可以一次输入多行。
    - `cct_live_click`：点击图形界面的按钮。先用 `regions` 找到区域：按钮单独成块时，点区域的 `center`；按钮和外面的卡片颜色相同时，整张卡片会被合成一个区域，这时要点区域里 `labels`（按钮标签）的 `center`。点显示器时加 `source`。
    - 如果电脑旁边有显示器，程序的主界面可能显示在显示器上：`cct_live_attach` 会返回 `monitors`，查看时给 `cct_live_screen` / `cct_live_status` 传 `source`。
 3. `cct_live_wait`：等屏幕出现某段文字、出现某类记录（`printed_error`、`http_failure`、`vm_close`），或者画面停止变化。
 4. `cct_live_status {after}` 看发生了什么，再用 `cct_live_trace {kind, after}` 只读需要的记录。每条记录都有 `seq`（在 trace 里的顺序）和 `tick`（游戏时间）：`after` 按 seq 筛选，`ticks` 按 tick 筛选。读记录时注意：
-   - **程序崩溃先看 `printed_error`**（shell 就是这样报告错误的）；`vm_error` 只记录 Too long without yielding 这类 VM 级错误；
+   - **程序崩溃先看 `printed_error`**（shell 就是这样报告错误的；用了 `bg` / `fg` 多标签时，`program` 可能是标签页的启动程序，以错误文字里的文件名为准）；`vm_error` 只记录 Too long without yielding 这类 VM 级错误；
    - 网络和文件看 `api`（请求了什么 URL、打开了什么文件）和 `handle`（读写的数据，以及 `bytes`，即数据的完整长度）；
    - 外设看 `peripheral_call` / `peripheral_return`。
 5. 需要看完整文件时用 `cct_live_files op=read`，需要在电脑上做检查时用 `cct_live_lua`，需要看 HTTP 响应的完整内容时用 `cct_live_body`。
-6. 结论要以记录为依据，写明对应的记录类型和 tick（例如“tick 2081 的 handle readAll 读到 `<!doctype html>`”），然后 `cct_live_detach`。
+6. 结论要以记录为依据，写明对应的记录类型和 tick（例如“tick 2081 的 handle readAll 读到 `<!doctype html>`”）。改动过文件的话，先用快照恢复（见 4.1），然后 `cct_live_detach`（它会顺便清理 `/.cctlive` 里的临时文件）。
 
 ### 4.4 模拟器和实机怎么分工
 

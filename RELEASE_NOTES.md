@@ -22,8 +22,8 @@
   4. **实机测试规则**：
      - 只在用户同意时接管，收到 `revoked` 立即停止；
      - 尽量不发 `terminate`；
-     - 测完恢复原状，并释放电脑；
-     - 省 token 的用法（`status` / `wait` / `summary` / `cct_live_lua` / `cct_live_body`）；
+     - 改动文件前先用 `cct_live_snapshot` 保存快照，测完恢复原状并确认，再释放电脑；
+     - 省 token 的用法（`status` / `wait` / `summary` / trace 的 `contains` / `cct_live_lua` 和超时后的 `result` / `cct_live_body`）；
      - 怎么读记录（程序崩溃先看 `printed_error`）；
      - 模拟器和实机怎么分工。
   - 也写了只有命令行、没有 MCP 时的对应命令。
