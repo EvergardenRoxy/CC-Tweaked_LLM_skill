@@ -1,4 +1,4 @@
-# 发行版说明 1.3.0：结构整理，模组内容独立成文件
+# 发行版说明 1.2.2：结构整理，模组内容独立成文件
 
 这一版做了两件事：
 
@@ -34,6 +34,11 @@
   - 代码只留一份：在本地改、在模拟器里测、再写到电脑上；在电脑上改了要同步回来。
 - **启动**：不要覆盖用户已有的 `startup.lua`，把启动器放进 `/startup/` 目录，开机时两者都会运行（铁律第 10 条、`troubleshooting.md`）。
 - `troubleshooting.md` 新增 4 条（第 56～59 条）。
+
+## 文档
+
+- README 重写：版本信息和这一版的变化、联合测试 4 的效果对比；“Skill 内容一览”移到 [`CONTENTS.md`](CONTENTS.md)，安装方法统一在 [`INSTALL.md`](INSTALL.md)。
+- 配套 [cct-run 0.2.2](https://github.com/EvergardenRoxy/CC-Tweaked_MCP)：fixture 里写了中文时会提醒、`cct_trace` 可以直接用 `run_id`。本版的测试说明不依赖这些新功能，用 cct-run 0.2.0 也可以。
 
 ## 校验
 
