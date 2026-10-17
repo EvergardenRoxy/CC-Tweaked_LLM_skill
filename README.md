@@ -32,12 +32,13 @@
 | 审查程序 | "帮我看看这段 ComputerCraft 代码有没有问题" |
 | 排查故障 | "报错 attempt to index a nil value / Too long without yielding 怎么办" |
 | 外设与模组机器 | "读取能量存储方块的电量，低于 20% 自动开发电机" |
+| 测试与实机排错（需要 cct-run） | "写好之后先在模拟器里跑一遍再给我" / "接管 3 号电脑，看看这个安装脚本为什么装完打不开" |
 
 每次回答都会给出：**整体思路 + 安装清单（设备 → 位置/网络名）+ 程序 + 运行步骤 + 风险提示**，并在交付前对照内置自检清单。
 
 ## Skill 内容一览
 
-Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 400 行），细节文件由模型在需要时按索引读取，避免每次占用大量上下文。
+Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 450 行），细节文件由模型在需要时按索引读取，避免每次占用大量上下文。
 
 **核心文件** [`SKILL.md`](skills/minecraft-cc-tweaked/SKILL.md)（每次触发时加载）
 
@@ -110,7 +111,7 @@ Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 
 
 再装上 cct-live mod，模型还可以在你同意后接管游戏里的电脑，进行实机测试和排错：接管时聊天栏会提示，你可以随时用 `/cctlive detach <id>` 收回控制。
 
-没有安装时，Skill 照常工作，只会在第一次交付程序时提醒一次可以安装。详见 [`references/testing.md`](skills/minecraft-cc-tweaked/references/testing.md)。
+没有安装时，Skill 照常工作，只会在第一次交付程序时提醒一次可以安装。详见 [`references/testing.md`](skills/minecraft-cc-tweaked/references/testing.md)；Skill 和 cct-run 一起安装、配置的步骤见 [INSTALL.md](INSTALL.md#配合-cct-run-使用)。
 
 ## 准确性说明
 

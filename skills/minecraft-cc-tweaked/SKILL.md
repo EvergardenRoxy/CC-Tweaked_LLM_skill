@@ -154,7 +154,7 @@ description: 协助用户为 Minecraft 模组 CC：Tweaked（ComputerCraft，CC:
 |---|---|
 | **只有本 Skill**（没有 `cct_run` 等工具，也没有 `cct-run` 命令） | 按自检清单检查后交付；在第一次交付时提醒一次可以安装 cct-run（提醒文字见 `testing.md` 第 2 节），用户说不需要就不再提；不要写“已测试” |
 | **有模拟器**（`cct_run`、`cct_trace`、`cct_screen`、`cct_guide`，或命令行 `cct-run`） | 交付前用符合用户真实布局的 fixture 运行，看 `status`、报错行号和 trace，修到通过；在【怎么验证】里写明测了什么、结果如何、模拟没覆盖什么 |
-| **还有实机工具**（`cct_live_*`） | 只在用户要求或同意时接管指定的电脑；用 `cct_live_status` / `cct_live_wait`，不要反复轮询；崩溃先看 `printed_error`；用完 `cct_live_detach` |
+| **还有实机工具**（`cct_live_*`） | 只在用户要求或同意时接管指定的电脑；用 `cct_live_status` / `cct_live_wait`，不要反复轮询；崩溃先看 `printed_error`；在电脑上查事实用 `cct_live_lua`；测完恢复原状，用完 `cct_live_detach` |
 
 ---
 
