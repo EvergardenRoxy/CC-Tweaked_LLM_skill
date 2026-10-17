@@ -130,3 +130,66 @@ gemini skills install https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill.git
    ```
 
 3. 不支持附件的工具，可直接把 `SKILL.md` 正文（去掉开头的 YAML front matter）粘贴为系统提示词。
+
+## 配合 cct-run 使用
+
+[cct-run](https://github.com/EvergardenRoxy/CC-Tweaked_MCP) 是本 Skill 的配套测试工具。Skill 会先看 AI 当前的工具列表：
+
+- 有 `cct_run` 等工具时，交付前先在模拟器里运行程序；
+- 还有 `cct_live_*` 工具时，经你同意后可以接管游戏里的电脑；
+- 都没有时，只会在第一次交付时提醒一次可以安装。
+
+规则见 [`references/testing.md`](skills/minecraft-cc-tweaked/references/testing.md)。
+
+### 1. 安装 cct-run（模拟器）
+
+需要 Java 17 或更高版本。解压 cct-run 的发布包（还没有发布包时，按它 README 的“从源码构建”一节构建），然后运行 `bin/cct-run version`（Windows：`bin\cct-run.bat version`），能输出带 `"cc_tweaked"` 的 JSON 就说明装好了。
+
+### 2. 在 AI 客户端里配置 MCP
+
+把 `<解压目录>` 换成实际路径；JSON 里的 `\` 要写成 `\\`。
+
+Claude Code（在 cmd 里运行）：
+
+```bat
+claude mcp add --scope user cct-run -- cmd /c <解压目录>\bin\cct-run.bat mcp
+```
+
+使用 `mcpServers` JSON 配置的客户端（Claude Desktop、Cherry Studio、DeepSeek Harness 等）：
+
+```json
+{
+  "mcpServers": {
+    "cct-run": {
+      "command": "cmd",
+      "args": ["/c", "<解压目录>\\bin\\cct-run.bat", "mcp"],
+      "env": { "CCT_LIVE_DIR": "<游戏目录>" }
+    }
+  }
+}
+```
+
+Codex（`~/.codex/config.toml`）：
+
+```toml
+[mcp_servers.cct-run]
+command = "cmd"
+args = ["/c", "<解压目录>\\bin\\cct-run.bat", "mcp"]
+tool_timeout_sec = 300
+env = { CCT_LIVE_DIR = "<游戏目录>" }
+```
+
+macOS / Linux 把 `cmd /c ...cct-run.bat` 换成 `<解压目录>/bin/cct-run`。只用模拟器时，可以不写 `CCT_LIVE_DIR`。
+
+### 3. （可选）实机测试：cct-live mod
+
+把 cct-live 的 jar 放进游戏的 `mods/`，和 CC: Tweaked 1.120.2 放在一起（只支持 Forge 1.20.1）。`<游戏目录>` 是有 `mods/` 的那个文件夹；启动器开了版本隔离时，是版本文件夹。
+
+- AI 接管电脑时，聊天栏会有提示；你可以随时用 `/cctlive detach <id>` 收回控制。
+- 想让 AI 写文件、使用 `cct_live_lua`，需要在 `config/cctlive-common.toml` 里把 `files.allow_write` 改成 `true`（默认关闭）。
+- 详见 cct-run 仓库的 `mod/README.md`。
+
+### 4. 确认生效
+
+重新连接 MCP 后，对 AI 说：“列出 cct-run 的工具”。它应该能看到 `cct_run`、`cct_guide` 等工具，装了 mod 的话还有 `cct_live_*`。
+
