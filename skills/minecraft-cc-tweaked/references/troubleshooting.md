@@ -58,9 +58,13 @@
 | 50 | 服务器卡顿时音频/同步逻辑越来越慢、延迟越积越大 | 语义错 | 按刻数计时会随 TPS 变慢；改用 `os.epoch("utc")` 计算节拍，并限制缓冲长度 |
 | 51 | 新手在 shell 输入 `turtle.forward()` 报 `No such program` | 语义错 | shell 只运行程序；先输入 `lua` 进入交互环境（见 `getting-started.md`） |
 | 52 | 看板刷新几次后冻结；聊天指令、显示器触摸偶尔没反应（循环里读箱子或模组外设） | 语义错 | 外设方法要等服务器执行，等待期间到达的事件（计时器、聊天、触摸）被当前协程丢掉。用 `parallel` 分成只收事件的监听协程、执行指令的工作协程和读外设的轮询协程（`events-and-concurrency.md`“外设调用会丢事件”，有实测和模板） |
-| 53 | 模组外设返回的中文、聊天框 `chat` 事件里的消息变成 `?` | 语义错 | U+00FF 以上的字符从 Java 进 Lua 时变成 `?`；聊天框用第 6 个返回值 `messageUtf8`（`peripherals.md` 实测记录） |
+| 53 | 模组外设返回的中文、聊天框 `chat` 事件里的消息变成 `?` | 语义错 | U+00FF 以上的字符从 Java 进 Lua 时变成 `?`；聊天框用 `messageUtf8`（`{ os.pullEvent() }` 的 `ev[6]`，`chinese-text.md`、`mod-advanced-peripherals.md`） |
 | 54 | 每条聊天指令执行了两次 | 语义错 | 聊天框既贴在计算机上又通过有线网络接入，被当成两个外设，事件到达两次；去重或只接一种方式 |
 | 55 | `main function has more than 200 local variables` | 语法错 | 一个函数最多 200 个 `local`；把函数放进模块表、拆文件（`app-engineering.md`），不要改成全局变量 |
+| 56 | 程序用聊天框发的中文、写到 Create 显示板的中文在游戏里是乱码 | 语义错 | Lua 字符串是字节，直接传给模组会逐字节变成字符。聊天框用 `sendFormattedMessageToPlayer` + JSON `\uXXXX` 转义，显示链接器用 `writeBytes(字节表)`（`chinese-text.md`） |
+| 57 | Create 显示板停在旧内容上不更新 | 语义错 | 显示板是机械方块，要有转速才会更新；程序空闲时把整个传动网络设成 0 rpm 就会这样。只断开产线，保持主轴转动（`mod-create.md`） |
+| 58 | 用红石控制 Create 离合器，开和停反了 | 语义错 | 离合器通红石时**断开**：输出红石 = 停止（`mod-create.md`） |
+| 59 | 自启程序覆盖了用户原来的 `startup.lua` | 语义错 | 把启动器放进 `/startup/` 目录（如 `/startup/myprog.lua` 里 `shell.run("/myprog.lua")`），开机时它和 `startup.lua` 都会运行 |
 
 ## 报错信息速查
 
