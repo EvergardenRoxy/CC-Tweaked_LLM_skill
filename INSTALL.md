@@ -1,6 +1,25 @@
 # 各工具安装详解
 
-> 返回 [README](README.md#安装)
+> 返回 [README](README.md#安装) · [Skill 内容一览](CONTENTS.md) · [发行版说明](RELEASE_NOTES.md)
+
+本 Skill 遵循开放的 [Agent Skills](https://agentskills.io) 格式：一个包含 `SKILL.md` 的文件夹（本仓库为 `skills/minecraft-cc-tweaked/`，**连同 `references/` 一起复制**）。支持该格式的工具只需把文件夹放进对应目录即可自动加载。
+
+## 速查表
+
+| 工具 | 项目级目录 | 用户级目录（所有项目可用） | 一键安装 |
+|---|---|---|---|
+| [Claude Code](#claude-code) | `.claude/skills/` | `~/.claude/skills/` | `/plugin` 插件市场 |
+| [Claude.ai / 桌面端](#claudeai--claude-桌面端) | — | 设置中上传 zip | — |
+| [OpenAI Codex](#openai-codexcli--ide-插件--codex-app) | `.agents/skills/` | `~/.agents/skills/` | `$skill-installer` |
+| [Cursor](#cursor) | `.cursor/skills/` 或 `.agents/skills/` | `~/.cursor/skills/` 或 `~/.agents/skills/` | — |
+| [VS Code + GitHub Copilot](#vs-code--github-copilot) | `.github/skills/` 或 `.agents/skills/` | `~/.copilot/skills/` 或 `~/.agents/skills/` | — |
+| [Gemini CLI](#gemini-cli) | `.gemini/skills/` 或 `.agents/skills/` | `~/.gemini/skills/` 或 `~/.agents/skills/` | `gemini skills install` |
+| [Cherry Studio](#cherry-studio) | — | 设置 → 技能 | 从文件夹 / ZIP / GitHub 安装 |
+| [ChatGPT、DeepSeek 等网页对话](#chatgptdeepseek-等不支持-skills-的对话工具) | — | 上传文件或项目知识库 | — |
+
+> 💡 **`.agents/skills/` 是通用目录**：Codex、Cursor、VS Code Copilot、Gemini CLI 都会读取它。同时使用多个工具时，放在 `~/.agents/skills/` 一处即可。
+
+要让 AI 在交付前测试程序，再按最后一节[配合 cct-run 使用](#配合-cct-run-使用)配置。
 
 ## 获取 Skill 文件
 
