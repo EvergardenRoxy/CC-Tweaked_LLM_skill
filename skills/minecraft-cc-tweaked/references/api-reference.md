@@ -42,7 +42,7 @@
 | `os.setAlarm(游戏时间0–24)` → id | 到游戏内时间产生 `alarm, id` |
 | `os.cancelAlarm(id)` | 取消闹钟 |
 | `os.sleep(秒)` | 同 `sleep` |
-| `os.clock()` | 本计算机已运行秒数 |
+| `os.clock()` | 本计算机已运行的时间，按游戏刻计（0.05 秒一步）：一段连续执行、不让出的代码里它不变，服务器卡顿时比现实时间慢；测间隔、判断超时用 `os.epoch("utc")` |
 | `os.time([locale])` | 默认 `"ingame"`：游戏内小时 0–24；`"utc"`/`"local"`：现实时间小时；传 `os.date("*t")` 表则返回 UNIX 时间戳 |
 | `os.day([locale])` | 天数 |
 | `os.epoch([locale])` | 毫秒；`os.epoch("utc")` 是现实 UNIX 毫秒；`"ingame"` 下 1 现实秒 = 72000 |

@@ -59,15 +59,15 @@ Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 
 | `design-thinking.md` | **设计方法**：先拆解与找最简单方案、六步推导流程、CC 硬约束清单、结构选择、失败模式五问、12 个思路模式、评审代码/教程的方法、完整推导示例 |
 | `security.md` | 何时使用（仅在用户要求/同意时加入安全代码）、威胁模型（网络旁观者/能操作终端/能拆机/OP）、各机制能挡住什么、常见教程误区、加盐迭代哈希（附经测试向量验证的纯 Lua SHA-256）、本地登录终端、挑战-应答远程认证 |
 | `getting-started.md` | 新手入门：shell/`lua` 交互环境/程序文件的区别、读懂文档签名、外部编辑器与文件位置、模拟器、中文资料的可信度 |
-| `testing.md` | **测试**：判断有没有测试环境；只有 Skill 时提醒用户安装 cct-run；有 cct-run 模拟器时交付前用 fixture 运行、读结果和 trace、如实写出模拟没覆盖的部分；有实机工具（cct-live）时规范接管、省 token 的查询方式、用完释放 |
+| `testing.md` | **测试**：判断有没有测试环境；只有 Skill 时提醒用户安装 cct-run；有 cct-run 模拟器时交付前用 fixture 运行、读结果和 trace、如实写出模拟没覆盖的部分；有实机工具（cct-live）时规范接管、省 token 的查询方式、用完释放；模组外设写成 `scripted` fixture；实机验证要请玩家真实操作，注入的事件不算 |
 | `api-reference.md` | 全局 API 完整参考：`os`、`fs`、`io`、`term`、`window`、`colors`、`textutils`、`settings`、`shell`、`redstone`、`parallel`、`vector`、`commands`、`cc.*` 库 |
-| `peripherals.md` | 外设连接与命名、通用外设（inventory/fluid/energy）、物品与方块详情字段、显示器、扬声器、打印机、驱动器、红石继电器、模组外设排查 |
+| `peripherals.md` | 外设连接与命名、通用外设（inventory/fluid/energy）、物品与方块详情字段、显示器、扬声器、打印机、驱动器、红石继电器、模组外设排查、模组外设的共同点（中文变 `?`、接两次事件重复）与 Create / Advanced Peripherals 实测记录、CC 绘图字符做细进度条 |
 | `turtle.md` | 海龟全部函数、燃料、工具升级、可靠移动封装、坐标跟踪、物品栏管理、常见任务要点、区块加载 |
 | `networking.md` | rednet、modem、GPS 星座搭建、HTTP/WebSocket、安全提示 |
-| `events-and-concurrency.md` | 全部事件参数表、事件循环、计时器、`parallel`、协程、`terminate`、性能 |
+| `events-and-concurrency.md` | 全部事件参数表、事件循环、计时器、`parallel`、**外设调用会丢事件（看板 + 指令的三协程结构，附实测）**、协程、`terminate`、性能 |
 | `templates.md` | 14 个参考程序及其背后的设计决策表（仓储统计、熔炉阵列、分拣、伐木、隧道、农场、遥控、触摸面板、能量控制、储罐、密码门、网络音乐、断点续跑、多扬声器同步播放器） |
 | `app-engineering.md` | 大型程序工程化：模块结构、可靠的异步 HTTP（请求标记、超时看门狗、选择性重试、分块读取、Range 大文件下载）、安装器与更新器、设置持久化与校验、外设选择与热插拔、功能探测、日志脱敏、调色板恢复、中文显示限制与 utf8display 点阵字体库、发布与 CI |
-| `troubleshooting.md` | 51 条常见错误对照、报错信息速查、排错流程、游戏内工具 |
+| `troubleshooting.md` | 55 条常见错误对照、报错信息速查、排错流程、游戏内工具 |
 | `config-and-versions.md` | 服务器配置、`/computercraft` 命令、数据包、版本差异、Lua 兼容性、资料来源与已知出入 |
 
 ## 安装

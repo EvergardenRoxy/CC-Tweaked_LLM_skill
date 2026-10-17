@@ -22,7 +22,7 @@ description: 协助用户为 Minecraft 模组 CC：Tweaked（ComputerCraft，CC:
 4. **外设名字只有两种**：相邻方块用方向 `"top" "bottom" "left" "right" "front" "back"`（相对计算机朝向）；经有线调制解调器连接的用网络名，如 `"minecraft:chest_0"`（右键调制解调器时聊天栏显示）。不要编造名字；优先 `peripheral.find("类型")`，并且**检查返回 nil** 后用 `error("…", 0)` 给出清楚提示。
 5. **会失败的操作要检查返回值。** 海龟动作失败时**不抛错**，而是返回 `false, "原因"`；`fs.open`、`http.get`、`peripheral.wrap`、`rednet.receive(超时)` 失败返回 `nil`。不检查就会在后面出现 `attempt to index a nil value`。
 6. **长时间运行的循环必须让出（yield）。** `while true do` 里必须有 `os.pullEvent`/`sleep`/海龟动作/外设调用等会 yield 的操作，否则报 `Too long without yielding`，程序被强制终止。
-7. **`sleep()` 会丢弃等待期间到来的所有其他事件。** 既要定时又要响应事件（按键、rednet、显示器触摸），用 `os.startTimer` + `os.pullEvent` 事件循环，或 `parallel.waitForAny`（见第 3 节）。
+7. **`sleep()`、带过滤的 `os.pullEvent`、会等待的外设方法都会丢弃等待期间到来的其他事件。** 箱子/储罐/能量方块的通用方法（`list`、`pushItems`……）和大多数模组外设方法都要等服务器执行，期间到达的聊天、触摸、计时器事件就丢了。既要定时又要响应事件，用 `os.startTimer` 事件循环（处理时不调用会等待的外设方法）；**既要轮询外设又要响应指令/触摸**（看板、工厂控制），用 `parallel` 把只收事件的监听协程和调用外设的协程分开（第 3 节、`events-and-concurrency.md`“外设调用会丢事件”）。
 8. **`inventory.list()`、`fluid_storage.tanks()` 返回稀疏表**：空槽是 `nil`，必须用 `pairs`，不能用 `ipairs` 或 `#`。槽位从 **1** 开始。
 9. **`pushItems`/`pullItems`/`pushFluid`/`pullFluid` 的第一个参数是对方外设的名字字符串**（`peripheral.getName(x)`），不是 wrap 出来的表；两个容器要在**同一个有线网络**上。海龟自己的物品栏不是 `inventory` 外设，从箱子取放物品用 `turtle.suck*`/`turtle.drop*`。
 10. **海龟移动消耗燃料**（转向不耗）。程序开头检查 `turtle.getFuelLevel()`（可能返回字符串 `"unlimited"`）；挖掘程序要处理沙砾/沙子掉落、生物挡路、背包满、返回路径的燃料。
@@ -43,10 +43,10 @@ description: 协助用户为 Minecraft 模组 CC：Tweaked（ComputerCraft，CC:
 | 遇到这种情况 | 必须先读 |
 |---|---|
 | 要用第 4 节没列出的函数，或需要确切的参数/返回值（`fs`、`term`、`textutils`、`settings`、`http`、`os`、`colors`、`window`、`cc.*` 库……） | `references/api-reference.md` |
-| 要操作外设：箱子/储罐/能量方块、显示器、扬声器、打印机、磁盘驱动器、红石继电器、命令方块；有线网络命名；物品/方块详情表的字段 | `references/peripherals.md` |
+| 要操作外设：箱子/储罐/能量方块、显示器、扬声器、打印机、磁盘驱动器、红石继电器、命令方块；有线网络命名；物品/方块详情表的字段；模组外设（含 Create、Advanced Peripherals 的实测记录） | `references/peripherals.md` |
 | 写海龟程序：挖矿、隧道、砍树、种田、建造、合成、装备工具、坐标与朝向跟踪 | `references/turtle.md` |
 | 计算机间通信（rednet/modem）、GPS 搭建与定位、HTTP/WebSocket、下载程序 | `references/networking.md` |
-| 事件循环、定时器、`parallel`、协程、按键/鼠标/显示器触摸、`terminate` 处理 | `references/events-and-concurrency.md` |
+| 事件循环、定时器、`parallel`、协程、按键/鼠标/显示器触摸、`terminate` 处理；看板 + 指令类程序的结构 | `references/events-and-concurrency.md` |
 | 要写一个新程序，想找相似案例（仓储统计、自动熔炉、伐木、隧道、远程控制、触摸按钮、能量监控、音乐……） | `references/templates.md` |
 | 用户贴出报错原文，或说"不工作/没反应/卡住/报错" | `references/troubleshooting.md` |
 | 问到服务器配置（HTTP 白名单、磁盘空间、燃料开关）、`/computercraft` 命令、版本差异、Lua 兼容性 | `references/config-and-versions.md` |
@@ -153,8 +153,8 @@ description: 协助用户为 Minecraft 模组 CC：Tweaked（ComputerCraft，CC:
 | 情况 | 怎么做 |
 |---|---|
 | **只有本 Skill**（没有 `cct_run` 等工具，也没有 `cct-run` 命令） | 按自检清单检查后交付；在第一次交付时提醒一次可以安装 cct-run（提醒文字见 `testing.md` 第 2 节），用户说不需要就不再提；不要写“已测试” |
-| **有模拟器**（`cct_run`、`cct_trace`、`cct_screen`、`cct_guide`，或命令行 `cct-run`） | 交付前用符合用户真实布局的 fixture 运行，看 `status`、报错行号和 trace，修到通过；在【怎么验证】里写明测了什么、结果如何、模拟没覆盖什么 |
-| **还有实机工具**（`cct_live_*`） | 只在用户要求或同意时接管指定的电脑；用 `cct_live_status` / `cct_live_wait`，不要反复轮询；崩溃先看 `printed_error`；在电脑上查事实用 `cct_live_lua`；改文件前先 `cct_live_snapshot` 保存，测完 `restore` 恢复原状，用完 `cct_live_detach` |
+| **有模拟器**（`cct_run`、`cct_trace`、`cct_screen`、`cct_guide`，或命令行 `cct-run`） | 交付前用符合用户真实布局的 fixture 运行（模组外设用实机数值写成 `scripted`，若 `cct_guide` 有此项），看 `status`、报错行号和 trace，修到通过；在【怎么验证】里写明测了什么、结果如何、模拟没覆盖什么 |
+| **还有实机工具**（`cct_live_*`） | 只在用户要求或同意时接管指定的电脑；聊天指令、过载等要请用户在游戏里真的做一次，注入的事件不算实机验证；用 `cct_live_status` / `cct_live_wait`，不要反复轮询；崩溃先看 `printed_error`；在电脑上查事实用 `cct_live_lua`；改文件前先 `cct_live_snapshot` 保存，测完 `restore` 恢复原状，用完 `cct_live_detach` |
 
 ---
 
@@ -172,7 +172,8 @@ description: 协助用户为 Minecraft 模组 CC：Tweaked（ComputerCraft，CC:
 每台计算机 = 一个 Lua 程序在协程里运行，靠"事件"驱动：
   os.pullEvent(过滤)   → 让出（yield），直到队列里出现匹配的事件才继续
   sleep(n)            → 内部 = startTimer + 只等这个 timer 事件；等待期间其他事件被丢弃
-  外设方法/海龟动作     → 内部也会让出，等服务器在游戏刻里执行完再返回（通常 ≥ 1 刻 = 0.05 秒）
+  外设方法/海龟动作     → 内部也会让出，等服务器在游戏刻里执行完再返回（通常 ≥ 1 刻 = 0.05 秒）；
+                         等待期间到达的其他事件同样被丢弃（显示器、终端方法除外，它们不等待）
   事件队列最多 256 个；溢出的事件被丢弃
   长时间不让出         → "Too long without yielding"，程序被终止
 ```
@@ -186,6 +187,7 @@ description: 协助用户为 Minecraft 模组 CC：Tweaked（ComputerCraft，CC:
 | 每 N 秒做一次，不需要响应输入 | `while true do 工作() sleep(N) end` |
 | 等某种事件（触摸、消息、红石变化） | `while true do local e, a, b = os.pullEvent("monitor_touch") … end` |
 | 定时 + 响应事件 | `os.startTimer` 事件循环，或 `parallel.waitForAny(定时循环, 事件循环)` |
+| 轮询箱子/模组外设 + 响应聊天指令、触摸 | `parallel`：监听协程只收事件放进队列，工作协程执行，轮询协程读外设（模板见 `events-and-concurrency.md`；单个循环会丢指令、冻结看板） |
 | 批量调用外设方法提速 | 把调用包成函数列表交给 `parallel.waitForAll`（一次别塞几百个） |
 
 计时器事件循环模板：
@@ -342,6 +344,7 @@ term.redirect(old)
 - 坐标从 **(1,1)** 开始；`print`/`write` 会折行，`term.write`/`mon.write` 不会。
 - 颜色常量 `colors.white … colors.black`（值为 1, 2, 4 … 32768）；`term.blit(文本, 前景, 背景)` 用 `0-9a-f` 字符串。
 - 只有**高级显示器**能触摸：事件 `monitor_touch, 名字, x, y`；只有高级计算机有 `mouse_click`。
+- 更细的进度条用 CC 自带的绘图字符 `"\128"`～`"\159"`（2×3 小方块），不要用 Unicode 方块或盲文字符（显示成乱码），见 `peripherals.md`。
 - 显示器尺寸变化触发 `monitor_resize`；复杂界面用 `window.create` 做缓冲防闪烁。
 
 ### 4.8 文件、设置与启动
@@ -399,6 +402,7 @@ settings.save()                                  -- 写到 /.settings
 | `chest.pushItems(other, slot)`（`other` 是 wrap 对象） | 报错 | `chest.pushItems(peripheral.getName(other), slot)` |
 | `while true do if rs.getInput("top") then … end end` | `Too long without yielding` | 循环里加 `os.pullEvent("redstone")` 或 `sleep(…)` |
 | `sleep(5)` 期间等 rednet 消息 | 消息被丢弃 | `rednet.receive(协议, 超时)` 或 `parallel` |
+| 一个事件循环里既处理聊天/触摸，又调用 `chest.list()` 或模组外设方法 | 指令偶尔丢失；计时器丢失后看板冻结 | `parallel` 三协程（第 3 节） |
 | `turtle.forward()` 不检查返回 | 撞墙/没燃料后坐标错乱 | `if not turtle.forward() then … end` 或 `assert(...)` |
 | `turtle.dig(); turtle.forward()` 挖沙砾 | 沙砾落下，前进失败 | `while turtle.detect() do turtle.dig() end` |
 | `if turtle.getFuelLevel() < 100` | 燃料无限时比较字符串报错 | 先判断 `== "unlimited"` |
@@ -429,6 +433,7 @@ settings.save()                                  -- 写到 /.settings
 - [ ] 所有无限循环里都有会 yield 的调用。
 - [ ] 需要同时等待多种事件时没有用 `sleep`，而是事件循环或 `parallel`。
 - [ ] 计时器事件比对了 ID（`p1 == timer`）；`os.pullEventRaw` 的分支处理了 `terminate`。
+- [ ] 等待聊天/触摸/按键的代码里没有调用会等待的外设方法；需要时用 `parallel` 分开（第 3 节）。
 - [ ] 需要自启的程序给出了 `startup.lua`；需要续跑的保存了进度。
 
 **交付内容**
