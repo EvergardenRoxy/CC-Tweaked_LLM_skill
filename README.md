@@ -43,7 +43,7 @@ Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 
 
 | 章节 | 内容 |
 |---|---|
-| 0. 铁律 | 给 AI 的 19 条硬约束（先拆解与对齐、Lua 5.2、不编造 API、`.` 与 `:`、外设命名、检查返回值、必须让出、`sleep` 丢事件、稀疏表、燃料、区块加载、中文显示、工程化、不照搬模板与教程、安全代码需用户同意……） |
+| 0. 铁律 | 给 AI 的 20 条硬约束（先拆解与对齐、Lua 5.2、不编造 API、`.` 与 `:`、外设命名、检查返回值、必须让出、`sleep` 丢事件、稀疏表、燃料、区块加载、中文显示、工程化、不照搬模板与教程、安全代码需用户同意、能测先测……） |
 | 1. 参考文件索引 | "遇到什么情况读哪个文件"的路由表 |
 | 2. 协助流程 | 先拆解与对齐目标、需要问清的信息、六步设计推导、两段式回答模板（先确认方案，再交付程序与可选增强） |
 | 3. 执行模型 | CraftOS 启动流程、事件队列、yield、外设调用耗时、程序结构选择 |
@@ -58,6 +58,7 @@ Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 
 | `design-thinking.md` | **设计方法**：先拆解与找最简单方案、六步推导流程、CC 硬约束清单、结构选择、失败模式五问、12 个思路模式、评审代码/教程的方法、完整推导示例 |
 | `security.md` | 何时使用（仅在用户要求/同意时加入安全代码）、威胁模型（网络旁观者/能操作终端/能拆机/OP）、各机制能挡住什么、常见教程误区、加盐迭代哈希（附经测试向量验证的纯 Lua SHA-256）、本地登录终端、挑战-应答远程认证 |
 | `getting-started.md` | 新手入门：shell/`lua` 交互环境/程序文件的区别、读懂文档签名、外部编辑器与文件位置、模拟器、中文资料的可信度 |
+| `testing.md` | **测试**：判断有没有测试环境；只有 Skill 时提醒用户安装 cct-run；有 cct-run 模拟器时交付前用 fixture 运行、读结果和 trace、如实写出模拟没覆盖的部分；有实机工具（cct-live）时规范接管、省 token 的查询方式、用完释放 |
 | `api-reference.md` | 全局 API 完整参考：`os`、`fs`、`io`、`term`、`window`、`colors`、`textutils`、`settings`、`shell`、`redstone`、`parallel`、`vector`、`commands`、`cc.*` 库 |
 | `peripherals.md` | 外设连接与命名、通用外设（inventory/fluid/energy）、物品与方块详情字段、显示器、扬声器、打印机、驱动器、红石继电器、模组外设排查 |
 | `turtle.md` | 海龟全部函数、燃料、工具升级、可靠移动封装、坐标跟踪、物品栏管理、常见任务要点、区块加载 |
@@ -99,6 +100,18 @@ Skill 采用**渐进式加载**：触发时只加载精简的核心文件（约 
 - 设备类型（普通/高级计算机、海龟、口袋计算机）、外设摆放位置或网络名（`peripherals` 程序可列出）
 - 现有代码与完整报错（文件名:行号: 消息）
 
+### 配套测试环境（可选）：cct-run
+
+装上 [cct-run](https://github.com/EvergardenRoxy/CC-Tweaked_MCP) 并在 AI 客户端里配置它的 MCP 服务器（`cct-run mcp`）后，Skill 会让模型**在交付前先运行程序**：
+
+- 在真实的 CC: Tweaked 代码上运行，不需要打开 Minecraft；
+- 用 fixture 模拟箱子、显示器、红石等外设；
+- 根据报错行号和事件记录修改，并在回答里如实写出测了什么、模拟没覆盖什么。
+
+再装上 cct-live mod，模型还可以在你同意后接管游戏里的电脑，进行实机测试和排错：接管时聊天栏会提示，你可以随时用 `/cctlive detach <id>` 收回控制。
+
+没有安装时，Skill 照常工作，只会在第一次交付程序时提醒一次可以安装。详见 [`references/testing.md`](skills/minecraft-cc-tweaked/references/testing.md)。
+
 ## 准确性说明
 
 - Skill 中全部 `lua` 代码块均已用 [`scripts/validate_skill.py`](scripts/validate_skill.py) 通过 **Lua 5.2 编译器**（与 CC: Tweaked 的 Cobalt 运行时同版本）的语法检查，并把其中用到的全局 API（`turtle.*`、`fs.*`、`peripheral.*`……）与 [tweaked.cc](https://tweaked.cc) 页面上的成员列表逐一核对；同时检查 `turtle:forward()` 这类误用 `:` 的写法；并从编译后的字节码中找出**全局变量赋值**（示例代码一律使用 `local`）和**未知全局变量读取**（拼写错误如 `pirnt`、`textutil`）。
@@ -136,7 +149,8 @@ python3 scripts/validate_skill.py
 │           ├── app-engineering.md
 │           ├── design-thinking.md
 │           ├── security.md
-│           └── getting-started.md
+│           ├── getting-started.md
+│           └── testing.md
 ├── scripts/
 │   └── validate_skill.py         # Lua 语法、API 名称、全局变量与结构校验
 ├── INSTALL.md                    # 各工具安装详解
@@ -162,7 +176,7 @@ python3 scripts/validate_skill.py
 
 ## English
 
-An [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) that teaches Claude to write, review and debug Lua programs for the Minecraft mod **CC: Tweaked** (ComputerCraft): computers, turtles, pocket computers, monitors, modems, inventories, rednet/GPS, redstone and HTTP. The skill content is written in Chinese and is based on the official documentation at [tweaked.cc](https://tweaked.cc). Rather than handing the model finished programs to imitate, it teaches how to derive a program from the user's constraints (hard limits of the CC world, structure selection, failure-mode analysis, reusable design patterns, threat modelling for security, reviewing third-party tutorials). It covers the execution model (events, yielding), the Lua 5.2 (Cobalt) runtime differences, the full API reference, peripherals, turtles, networking, a template library of 14 complete programs, an engineering guide for larger applications (reliable async HTTP, installers/updaters, settings, hot-plugging), a pre-delivery checklist and troubleshooting guides. All `lua` code blocks are syntax-checked with a Lua 5.2 compiler, their global API calls are verified against tweaked.cc, and global assignments or unknown globals are rejected; CI runs the validator on every push.
+An [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) that teaches Claude to write, review and debug Lua programs for the Minecraft mod **CC: Tweaked** (ComputerCraft): computers, turtles, pocket computers, monitors, modems, inventories, rednet/GPS, redstone and HTTP. The skill content is written in Chinese and is based on the official documentation at [tweaked.cc](https://tweaked.cc). Rather than handing the model finished programs to imitate, it teaches how to derive a program from the user's constraints (hard limits of the CC world, structure selection, failure-mode analysis, reusable design patterns, threat modelling for security, reviewing third-party tutorials). It covers the execution model (events, yielding), the Lua 5.2 (Cobalt) runtime differences, the full API reference, peripherals, turtles, networking, a template library of 14 complete programs, an engineering guide for larger applications (reliable async HTTP, installers/updaters, settings, hot-plugging), a pre-delivery checklist, troubleshooting guides, and testing guidance for the companion tool [cct-run](https://github.com/EvergardenRoxy/CC-Tweaked_MCP) (with its MCP server, the model runs programs on a headless CC: Tweaked before delivering them, and with the cct-live mod it can test on the user's real in-game computers; without it, the model reminds the user once that it can be installed). All `lua` code blocks are syntax-checked with a Lua 5.2 compiler, their global API calls are verified against tweaked.cc, and global assignments or unknown globals are rejected; CI runs the validator on every push.
 
 Install with Claude Code:
 

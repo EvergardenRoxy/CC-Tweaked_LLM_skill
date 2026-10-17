@@ -39,6 +39,7 @@ CCT_prompt_pack.zip
     ├── peripherals.md
     ├── security.md
     ├── templates.md
+    ├── testing.md
     ├── troubleshooting.md
     └── turtle.md
 ```
