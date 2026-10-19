@@ -2,9 +2,9 @@
 
 [Core](../SKILL.md) · [Design](design-thinking.md) · [Testing](testing.md)
 
-`os.pullEvent(filter)` waits for matching events; other events delivered to that waiting coroutine may be discarded. `sleep` waits for a timer internally. Some device calls yield for main-thread work. A callback that waits can therefore disrupt other input or consume a timer event before the main loop sees it.
+`os.pullEvent(filter)` waits for a matching event and discards every other event delivered to that coroutine meanwhile. `sleep` is a timer plus such a filtered wait. Generic inventory/tank/energy methods and most mod methods wait for the server's main thread. A callback that waits can therefore drop user input, or swallow a timer event that the main loop was waiting for.
 
-Do not assume all peripheral methods yield, or that all terminal-like mod methods are immediate. Use the installed implementation and relevant annotations as evidence. Tick duration and wall-clock response under lag are different quantities.
+Not every peripheral method yields (native terminal and monitor drawing returns immediately), and terminal-like mod methods are not necessarily immediate. Check the installed implementation or its `mainThread` annotations. Under server lag, a game tick can take much longer than 0.05 seconds of real time.
 
 ## Short callbacks: one event loop
 
@@ -21,13 +21,13 @@ while true do
 end
 ```
 
-This example has no yielding work inside its callbacks. Giving a timer an ID does not recover it if another wait consumes its event.
+This works because no callback yields. Comparing timer IDs does not bring back a timer event that another wait already discarded; if it is lost, the loop never wakes again.
 
 ## Responsive input alongside device work
 
-Use a listener that only parses/validates/enqueues input, a worker that owns actuators, and a poller that publishes observations. `parallel` distributes events to eligible child coroutines; each coroutine's filters and yields still matter. Parent queues and mod input buffers are finite.
+Split the program into a **listener** that only parses, validates, and queues input; a **worker** that alone drives actuators; and a **poller** that reads devices and publishes what it sees. `parallel` hands each event to every child coroutine whose current filter matches, so a coroutine waiting on a peripheral call misses events only for itself. The computer's event queue and mod input buffers are still finite.
 
-The following is a small **volatile dashboard demonstration**, not a durable production-order queue. Touch toggles a redstone output; Q stops it. Configure the intended unique inventory/monitor and actual output polarity before use. The listener rejects overload visibly instead of dropping already queued commands. A real order system must persist acceptance when required and return a request-specific rejection.
+The following is a small **in-memory dashboard demo**, not a durable order queue. Touching the monitor toggles a redstone output; Q stops it. Before use, make sure only the intended inventory and monitor match, and check the output polarity. When the queue is full, the listener rejects the new command visibly instead of dropping queued ones. A real order system must save accepted orders when needed and send a rejection to the specific requester.
 
 ```lua
 -- Volatile dashboard demo: keep yielding reads out of the input listener.
@@ -75,8 +75,8 @@ local function listener()
     end
 end
 
--- 3. Worker: runs queued commands. It checks the queue before every wait,
---    so a "work" event lost while it was busy does not lose a command.
+-- Worker: runs queued commands. It checks the queue before every wait,
+--    so a "work" event missed while it was busy does not lose a command.
 local function worker()
     while true do
         while #queue > 0 do
@@ -97,15 +97,17 @@ end
 parallel.waitForAny(poller, listener, worker)
 ```
 
+Both the poller and the worker call `draw`; that is safe here only because monitor drawing does not yield, so one `draw` always finishes before another starts.
+
 This example leaves the output in its last commanded state on unexpected termination. For consequential machinery, choose the required stop policy, arrange cleanup on normal exits/errors, and use physical interlocks if loss of computer power must stop the plant. Software cleanup cannot run after every shutdown.
 
 ## Ownership and overload
 
-- Treat the queue as the source of pending work; wake-up events only notify the worker. Check queued work before waiting again.
-- Bound queues and processing batches. Explicitly reject or backpressure new commands; only replace old entries when they are intentionally disposable telemetry.
+- The queue is the record of pending work; wake-up events only notify the worker. Check the queue before waiting again.
+- Bound queues and processing batches. Reject or slow down new commands explicitly; drop old entries only when they are disposable telemetry where only the newest value matters.
 - A read/decide/write sequence containing a yield can interleave with another coroutine. Assign one owner or revalidate; cooperative scheduling does not eliminate races.
-- Do not render from multiple yielding workers without coordination. Core monitor operations and mod display updates have different scheduling contracts.
-- Handle peripheral source names and event-specific payloads. AP chat and Create events do not share an argument layout.
-- `waitForAny` ends sibling work when one function returns. `waitForAll` waits for every task. Plan shutdown and error propagation explicitly.
+- Do not let several workers draw if drawing can yield. Native monitor calls do not yield; mod display updates (for example Create's `update()`) can.
+- Check the source peripheral name and the event's own argument layout. AP chat events and Create events are laid out differently.
+- `waitForAny` stops all other tasks as soon as one returns; `waitForAll` waits for every task. An error in any task ends the whole `parallel` call. Plan shutdown explicitly.
 
-For burst tests use unique request IDs, meaningful input cadence, realistic device delays/cooldowns, and separate tests for duplicates and queue capacity. A successful burst is evidence for that load, not a universal no-loss guarantee. See [testing](testing.md).
+For burst tests, use unique request IDs, a realistic input rate, realistic device delays and cooldowns, and separate tests for duplicate IDs and a full queue. A passing burst shows the program handled that load, not that it never loses input. See [testing](testing.md).
