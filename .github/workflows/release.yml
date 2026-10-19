@@ -1,0 +1,106 @@
+name: Publish release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to validate and publish (for example v1.3.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Validate tag input
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected an existing vMAJOR.MINOR.PATCH tag"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+
+      - name: Verify tag and version
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          tag = os.environ["RELEASE_TAG"]
+          version = json.load(open(".claude-plugin/marketplace.json"))["metadata"]["version"]
+          assert tag == "v" + version, "Tag and marketplace version differ"
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          tagged = subprocess.check_output(["git", "rev-parse", tag + "^{}"], text=True).strip()
+          assert head == tagged, "Checkout does not match the requested tag"
+          print("Publishing validated tag", tag, "at", head)
+          PY
+
+      - name: Install Lua 5.2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends lua5.2
+
+      - name: Cache official API pages
+        uses: actions/cache@v4
+        with:
+          path: .cache/tweaked.cc
+          key: release-tweaked-cc-${{ github.run_id }}
+          restore-keys: |
+            release-tweaked-cc-
+            tweaked-cc-
+
+      - name: Validate and build release pack
+        run: |
+          python3 scripts/validate_skill.py
+          python3 scripts/test_validator.py
+          python3 scripts/package_skill.py
+          sha256sum CCT_prompt_pack.zip > SHA256SUMS
+
+      - name: Prepare release notes
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re
+          base = "https://github.com/" + os.environ["GITHUB_REPOSITORY"] + "/blob/" + os.environ["RELEASE_TAG"] + "/"
+          text = pathlib.Path("RELEASE_NOTES.md").read_text(encoding="utf-8")
+          text = re.sub(r"(\[[^\]]*\]\()((?![a-zA-Z][a-zA-Z0-9+.-]*:|#|/)[^)\s]+)(\))",
+                        lambda m: m[1] + base + m[2] + m[3], text)
+          text += "\n\nDownload **CCT_prompt_pack.zip** for the active skill and **SHA256SUMS** to verify it.\n"
+          pathlib.Path("release-body.md").write_text(text, encoding="utf-8")
+          PY
+
+      - name: Publish release with verified assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          is_draft=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft --jq .isDraft)
+          if [[ "$is_draft" != "true" ]]; then
+            echo "Expected the prepared draft; refusing to alter a published release"
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" CCT_prompt_pack.zip SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY"
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --draft=false --latest \
+            --title "$RELEASE_TAG — English skill restructuring and bilingual README" \
+            --notes-file release-body.md
+
+      - name: Verify published assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern CCT_prompt_pack.zip --pattern SHA256SUMS --dir verified-release
+          cd verified-release
+          sha256sum --check SHA256SUMS
