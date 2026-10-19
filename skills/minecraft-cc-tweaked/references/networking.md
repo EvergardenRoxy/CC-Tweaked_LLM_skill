@@ -4,30 +4,30 @@
 
 ## Rednet and modems
 
-Discover and open the actual modem. Wired device names and rednet computer IDs are different identifiers. Wireless range, dimensions, and chunk loading depend on equipment/configuration; test the intended route.
+Find and open the actual modem: `peripheral.find("modem", rednet.open)`. Wired peripheral names and rednet computer IDs (`os.getComputerID()`) are different things. Wireless range depends on modem type, height, and configuration; ender modems cross dimensions; both ends must be chunk-loaded. Test the real route.
 
-Rednet provides messages and optional protocol names, not authenticated identity or guaranteed delivery. Use a small data schema with version, request ID, operation, and bounded fields. Reject malformed/unsupported messages. Track acknowledgments and deduplication where consequential commands may be retried. A delivery acknowledgment differs from action completion.
+Rednet sends Lua values (tables are serialized) with an optional protocol name. It does not authenticate the sender or guarantee delivery. Use a small message format with a version, request ID, operation, and bounded fields, and reject anything malformed or unsupported. Where important commands may be retried, use acknowledgments and deduplicate by request ID. "Message received" is not "action completed".
 
-`rednet_message` carries sender ID, message, protocol. A raw `modem_message` includes receiving side, channel, reply channel, message, and distance when available. Do not confuse the two event layouts. Protocol names, channels, sender IDs, and hidden chat prefixes are not authentication.
+`rednet_message` carries sender ID, message, protocol. A raw `modem_message` carries modem side, channel, reply channel, message, and distance (nil across dimensions). Do not mix up the two layouts. Protocol names, channels, sender IDs, and hidden chat prefixes are not authentication.
 
-`rednet.receive` waits and can discard unrelated events in its coroutine. For UI plus communication, dispatch events in a non-yielding listener or use separate tasks. Never evaluate incoming text as Lua.
+`rednet.receive` discards other events while it waits. For a UI that also communicates, handle `rednet_message` in the main event loop or run receiving in its own `parallel` task. Never run incoming text as Lua.
 
 ## GPS
 
-`gps.locate(timeout, debug)` can return coordinates or fail. It requires suitable reachable hosts and geometry. It does not establish facing or a safe path. Record the relevant dimension and frame; do not move destructively just to infer orientation without scope and a recovery plan.
+`gps.locate([timeout [, debug]])` returns `x, y, z` or nil. It needs at least four GPS hosts in range that are not all in one plane (`gps host x y z`), in the same dimension. It gives position only, not facing or a safe path. To find a turtle's facing, locate, move one block, and locate again, but only where that move is safe and allowed.
 
 ## HTTP
 
-Server rules can disable requests or restrict hosts, ports, sizes, redirects, and concurrency. Use HTTPS when supported, validate status and content, and always close response handles, including failure responses supplied by the API.
+The server can disable HTTP or restrict hosts, ports, sizes, redirects, and concurrent requests; local and LAN addresses are blocked by default. Use HTTPS, check the status code and content, and always close response handles, including the error response that `http.get` returns as its third value on HTTP errors.
 
-Choose synchronous calls in a worker for simple clients. For asynchronous requests, dispatch `http_success`/`http_failure` and owned timer events through a request registry using the actual event identifier. If identical URLs cannot be correlated by the installed API, serialize them or use a server-supported identifier. Appending arbitrary fragments/query strings can change cache/signature/server semantics and is not a universal correlation solution.
+For simple clients, call `http.get`/`http.post` from a worker task. For asynchronous `http.request`, match `http_success`/`http_failure` events to requests by URL in a request table, together with your own timeout timers. Requests to the same URL cannot be told apart, so send them one at a time. Adding fragments or query parameters to tell them apart can change server behavior and is not a general fix.
 
-Bound retries and timeouts. A client timeout does not prove a server failed to perform an operation. Automatically retry reads only when semantics allow; use an idempotency key or reconcile before retrying a consequential write. A local watchdog may not cancel a pending transport operation; handle late responses and close their handles.
+Limit retries and set timeouts. A client timeout does not prove the server did nothing. Retry reads automatically only when that is safe; before retrying a write that matters, use an idempotency key or check the server state. A local timeout does not cancel the request: handle late responses and close their handles.
 
-For large bodies, limit accumulation, decode cautiously, and yield in an appropriate worker without disrupting the main listener. Do not claim fixed chunk sizes guarantee responsiveness on every runtime.
+For large responses, cap the size you accept, decode carefully, and yield during long processing in a worker so the listener stays responsive. No fixed chunk size guarantees responsiveness everywhere.
 
 ## WebSockets and audio
 
-Own each socket's lifecycle and route URL/connection-specific events correctly. Handle close/failure and bounded reconnect, not an endless busy retry. Keep authorization material out of logs.
+Give each socket one owner and route its `websocket_message`/`websocket_closed` events by URL. Handle closing and failure with a limited, delayed reconnect, not an endless tight loop. Keep tokens out of logs.
 
-For streamed audio, decode DFPWM with the installed `cc.audio.dfpwm`, respect speaker backpressure, and wait for the matching speaker's `speaker_audio_empty` event before retrying a rejected buffer. Test stop, disconnect, and response/socket cleanup paths.
+For streamed audio, decode DFPWM with `cc.audio.dfpwm` (1.100+). When `speaker.playAudio` returns false, wait for that speaker's `speaker_audio_empty` event and retry the same buffer. Test stopping, disconnecting, and closing the response or socket.
