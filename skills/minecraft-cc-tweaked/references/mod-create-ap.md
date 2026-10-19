@@ -37,7 +37,7 @@ These methods run on the main thread, so even reads yield. Heat or fluid being p
 | `attribute` | mode, attributes | Use only the supported mode and attribute values |
 | `package` | address | Requires a package filter item |
 
-`setFilter(nil)` clears the filter. The block limits `count`. If the physical filter item is the wrong kind, the call returns false with a reason; do not throw away the user's filter item to get around it.
+`setFilter(nil)` clears the filter. The block limits `count`. If the physical filter item is the wrong kind, the call may return false with a reason; do not throw away the user's filter item to get around it.
 
 This format is neither AP's ItemFilter nor the Stock Ticker's `_requestCount` filter; convert explicitly between them.
 
