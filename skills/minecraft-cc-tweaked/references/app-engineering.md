@@ -4,13 +4,13 @@
 
 ## Structure by responsibility
 
-Keep the launcher small. Separate configuration, device adapters, pure decision logic, production state, and rendering when the program warrants modules. Do not force a multi-file framework onto a short script.
+Write large programs only when the user needs that scale (long-running, networked, with a UI). Keep the launcher small. When modules are warranted, separate configuration, device adapters, pure decision logic, production state, and rendering, and load them with `require`. Do not force a multi-file framework onto a short script.
 
-One owner should perform material actions and ledger updates. Detect optional capabilities instead of comparing version strings alone. On disconnection, invalidate affected wrappers and pause consequential work; reconnect does not prove an interrupted action failed.
+One component should perform world actions and ledger updates. Detect optional features directly instead of comparing version strings. When a device disconnects, discard its wrapper and pause work that depends on it; reconnecting does not prove an interrupted action failed.
 
 ## Disposable configuration example
 
-This example normalizes presentation settings and may overwrite them. It is **not** a production-state save protocol. Corrupt orders/intents require [recovery](state-and-recovery.md), never default initialization.
+This example cleans up display settings and may overwrite them. It is **not** a way to save production state: corrupt orders or intents need [recovery](state-and-recovery.md), never a reset to defaults.
 
 ```lua
 -- settings_store.lua: disposable presentation settings only.
@@ -75,11 +75,11 @@ cfg.volume = cfg.volume + 0.5
 print(save_config(cfg))
 ```
 
-The complete file read and schema validation happen before callers use the settings. Defaults are appropriate here because these fields do not authorize replaying production. This direct overwrite can lose settings on interruption; use recoverable generations if those settings require durability.
+The whole file is read and validated before callers use the settings. Defaults are acceptable here because these fields cannot cause production to be repeated. Overwriting the file directly can lose settings if interrupted; use the recoverable save in [recovery](state-and-recovery.md) if they must survive.
 
 ## Preserve exceptions and business returns
 
-A protected call must preserve nil-bearing tuples and must not relabel a false business result as success. This helper reports exceptions and returns the full pcall tuple. It does not decide the API's success semantics.
+A protected call must keep every return value, including nils, and must not turn a `false` result into success. This helper reports errors and returns the full pcall result; deciding what counts as success stays with the caller.
 
 ```lua
 local function safely(action, ...)
@@ -91,16 +91,16 @@ local function safely(action, ...)
 end
 ```
 
-For an application object defined with `function App:log(...)`, call `app:log(...)`. This does not change the dot convention of wrapped CC peripherals. Diagnostic logging should not hide the original outcome if logging itself fails; production persistence failures must remain explicit and gate actions.
+For your own object defined with `function App:log(...)`, call `app:log(...)`; wrapped CC peripherals still use dots. If logging itself fails, it must not hide the original result. Failures to save production state must stay visible and stop new actions.
 
 ## Installation and updates
 
-Preserve existing startup and user data. Use data-only manifests with validated paths, lengths, and pinned hashes when distributing updates. Download into staging, validate complete contents, retain a known previous generation, then switch using a documented recovery procedure. Do not delete the working installation before a replacement is verified.
+Keep existing startup files and user data. For updates, use a data-only manifest (not Lua code) listing validated paths, sizes, and pinned hashes. Download into a temporary directory, verify everything, keep the previous version, then switch over with a documented recovery procedure. Do not delete the working installation before the replacement is verified.
 
-Reject absolute/traversing archive paths and unexpected files. An empty Lua environment does not make a downloaded executable manifest safe. Integrity hashes obtained from the same untrusted source do not authenticate an update; use a trusted release channel or independently trusted signature when needed.
+Reject absolute paths, `..` paths, and unexpected files. Running a downloaded Lua manifest in an empty environment does not make it safe. Hashes downloaded from the same untrusted place do not authenticate an update; use a trusted release source or an independently trusted signature when that matters.
 
 ## Logs and resource budgets
 
-Log request IDs, stage, selected device, actual movement, and failure reason. Prefer structured allowlisted fields over dumping entire objects/requests; simple token-redaction patterns do not cover every secret. Rotate logs within a configured size budget and keep enough evidence to reconcile unresolved work.
+Log request IDs, stage, device, actual amounts moved, and failure reasons. Log a fixed set of fields instead of whole objects or requests; simple redaction patterns miss secrets. Rotate logs within a size limit (disk space is small), but keep enough to reconcile unfinished work.
 
-Bound polling, parallel batches, response sizes, queue depth, and retries. Publish concise summaries of full observations. Follow trace cursors forward and expose retention gaps; repeatedly reading the same earliest slice is not monitoring progress.
+Limit polling rates, parallel batch sizes, response sizes, queue depth, and retries. Summarize complete observations rather than partial ones.
