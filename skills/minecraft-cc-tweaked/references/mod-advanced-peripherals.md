@@ -1,74 +1,86 @@
-# Advanced Peripherals（高级外设）模组的外设
+# Advanced Peripherals: discovery, chat, and sensors
 
-> 返回 [SKILL.md](../SKILL.md) 第 1 节。**本文件是 Advanced Peripherals 模组的内容，不是 CC: Tweaked 本体。** CC: Tweaked 自己没有聊天框、玩家探测器；用户没装这个模组时不要用。
+[Artifact scope](mod-source-baseline.md) · [Storage](mod-advanced-peripherals-storage.md) · [Extensions](mod-advanced-peripherals-extended.md) · [Create integration](mod-create-ap.md) · [Method index](mod-advanced-peripherals-api.md)
 
-方法名和参数**随模组版本变化**；下面是实测记录，用之前按 `peripherals.md`“模组外设的通用排查方法”在用户的游戏里核对。
+Contracts refer to the reviewed AP 1.21.1-0.8.2a binary. Actual methods/configuration win over a matching label or old notes. Types use snake_case, including `chat_box`, `player_detector`, `geo_scanner`, `inventory_manager`, `me_bridge`, and `rs_bridge`.
 
-**实测环境**：Minecraft 1.20.1 Forge、CC: Tweaked 1.120.2、Advanced Peripherals 0.7.48r。来源：cct-run 的联合测试 3（两次）和联合测试 4。
+Common `getName`/`setName` manage AP display names, not wired network names. Use `peripheral.getName` for network identity. Common `getConfiguration()` exposes device/operation configuration. The injected `advancedperipherals` API can report Minecraft/AP/addon versions and iterate player-stat keys; availability still depends on the installation.
 
-## 聊天框 `chatBox`
+## Chat sending
 
-| 内容 | 实测结果 |
-|---|---|
-| 事件 `chat` | 参数依次为：玩家名、消息、UUID、是否隐藏（`isHidden`）、`messageUtf8`。用 `local ev = { os.pullEvent() }` 接住时，它们是 `ev[2]` 到 `ev[6]` |
-| 中文消息 | 第 2 个参数（消息）里的中文变成 `?`；要用第 5 个参数 `messageUtf8`（UTF-8 字节）。实测读 `ev[6]`，玩家发的中文指令能正确识别 |
-| `sendMessageToPlayer(消息, 玩家名 [, 前缀, 括号, 括号颜色, 范围, utf8Support])` | 成功返回 `true`；冷却中返回 `nil, "chatMessage is on cooldown"`。第 4 个参数“括号”是字符串，传布尔值会报 `bad argument #4` |
-| **发中文** | `sendMessageToPlayer` 发的中文在聊天栏是**乱码**：只传两个参数、或者把第 7 个参数 `utf8Support` 设为 `true`，实测都是乱码。**能用的写法**：`sendFormattedMessageToPlayer(JSON 文本, 玩家名)`，JSON 里的中文写成 `\uXXXX` 转义（下面的例子），实测聊天栏显示正常 |
-| `getOperationCooldown("chatMessage")` | 必须传参数，不传会报 `bad argument #1`。连续发送会进入冷却，回复要放进队列，失败后稍等再发 |
-| 接了两次 | 聊天框直接贴着电脑、又经有线调制解调器接入时，`chat` 事件每次到达两次。去重，或只接一种方式 |
+`chat_box.sendMessage(text [, options])` and `sendFormattedMessage(json [, options])` use an **options table**. Options include `player` (name/UUID), range, prefix, brackets (a two-character string), bracketsColor, and utf8. Old `sendMessageToPlayer`/`sendFormattedMessageToPlayer` methods are absent from this reviewed class.
 
-> 更正：本 Skill 1.2.0 曾写“发中文把 `utf8Support` 设为 `true`”，联合测试 4 实测无效，以本表为准。
+`utf8=true` activates the artifact's byte-string-to-UTF-8 decoding path. Formatted JSON can alternatively use Unicode escapes. `sendToast(options)`/`sendFormattedToast(options)` require message, title, and player; formatted title/message are JSON. `narrateMessage` has its own queued behavior/delay contract.
+
+A true send result means the dispatch call was accepted. Recipient filtering can produce zero recipients while returning true. It is not a read/delivery receipt. Nil/reason, false, and thrown errors must remain visible; invalid JSON/brackets/length and cooldown are distinct failures.
+
+Save this single-attempt adapter as `ap_reply.lua`. Queueing, bounded retry, authorization, and receipt tracking belong to the application.
 
 ```lua
--- Reply to one player in Chinese through the Advanced Peripherals chat box.
--- textutils.serialiseJSON with unicode_strings writes UTF-8 text as \uXXXX
--- escapes, which the chat box turns back into the right characters.
-local chat = peripheral.find("chatBox") or error("No chat box found", 0)
-
-local outbox = {}                       -- replies waiting for the cooldown
-
-local function tell(player, text)
-    outbox[#outbox + 1] = { player = player, text = text }
+-- ap_reply.lua: this jar uses an options table, not positional player args.
+local function reply(chat, player, text)
+    if type(player) ~= "string" or player == "" then return false, "Missing player" end
+    local called, accepted, reason = pcall(chat.sendMessage, text, { player = player, utf8 = true })
+    if not called then return false, tostring(accepted) end
+    if accepted ~= true then return false, tostring(reason or "Message not accepted") end
+    return true, "submitted"
 end
-
-local function sender()
-    while true do
-        local m = outbox[1]
-        if m then
-            local json = textutils.serialiseJSON({ text = m.text }, { unicode_strings = true })
-            if chat.sendFormattedMessageToPlayer(json, m.player) then
-                table.remove(outbox, 1)
-            else
-                sleep(0.5)              -- on cooldown: try again shortly
-            end
-        else
-            sleep(0.2)
-        end
-    end
-end
-
-local function listener()
-    while true do
-        local ev = { os.pullEvent("chat") }
-        local player, text = ev[2], ev[6] or ev[3]   -- ev[6] is messageUtf8
-        if text == "!ping" then tell(player, "pong") end
-    end
-end
-
-parallel.waitForAny(sender, listener)
+return reply
 ```
 
-- 联合测试 4 里能用的是手写的 `\uXXXX` 转义；`textutils.serialiseJSON(…, { unicode_strings = true })`（CC: Tweaked 1.120.2 有这个选项）生成的是同样的转义，在模拟器里核对过输出。
-- 发送放在单独的协程里（上例的 `sender`）：发送方法会等待，放在收指令的循环里会丢事件（`events-and-concurrency.md`）。
+## Cooldown and configuration
 
-## 玩家探测器 `playerDetector`
+Do not assume the previous test's cooldown or any artifact default is the server's current value. Where exposed, inspect `getConfiguration().operations` and the actual operation keys. In this artifact `chatMessage.getCooldown()` returns remaining milliseconds; configuration entries also expose cost/default metadata. This is a returned object's function, not an invented `getOperationCooldown` peripheral method.
 
-| 方法 | 实测结果 |
+Send in a worker with bounded pacing/retry; do not poll configuration on every listener event. Keep a meaningful nonzero cooldown in tests of throttling/queueing.
+
+## Chat events
+
+The reviewed layout is:
+
+```text
+event, uuid, username, message, hidden, messageUtf8
+```
+
+UUID can be nil. Prefer messageUtf8 for preserved UTF-8 input; ordinary message may already have lost characters in conversion. This event does not prepend a Create-style peripheral source. `$` hides a message and is removed by the mod; hidden does not mean authenticated.
+
+```lua
+-- ap_chat_event.lua: decode the uploaded jar's event layout only.
+local function decode(ev)
+    if ev[1] ~= "chat" or type(ev[3]) ~= "string" then return nil end
+    local text = type(ev[6]) == "string" and ev[6] or ev[4]
+    if type(text) ~= "string" then return nil end
+    return { uuid = ev[2], player = ev[3], text = text, hidden = ev[5] == true }
+end
+return decode
+```
+
+This decoder intentionally targets one verified profile. Select/verify the actual layout before installing it. Finite mod/event buffers and multiple chat sources can produce loss/duplicates; use request IDs and defined retention, not a blanket lossless claim. Never execute chat text as Lua.
+
+## Player Detector
+
+| Method family | Contract |
 |---|---|
-| `isPlayerInRange(范围, 玩家名)` | 注意参数顺序：范围在前。常用来限制“只有主人在附近时按钮才能用” |
-| `getOnlinePlayers()` | 在线玩家名列表 |
+| `getOnlinePlayers()` | Filtered by dimension/spectator configuration; not a radius query |
+| `getPlayersInRange(range)`, `isPlayersInRange(range)` | List or boolean for configured visibility |
+| `isPlayerInRange(range, player)` | Range first; reviewed check uses axis distances, not Euclidean-sphere geometry |
+| `getPlayersInCoords(a,b)` and boolean variants | Position tables with x/y/z |
+| `getPlayersInCubic(x,y,z)` and variants | Relative cubic extents, not arbitrary absolute world points |
+| `getPlayer(player [, detailed])` | Actual Lua alias; nil/error possible, coordinates may have configured error |
+| `getOwner([detailed])` | Owner-capable pocket/turtle contexts; may be nil for a block |
+| `getPlayerStat(...)` | Use actual stat keys/parameters; do not guess legacy IDs |
 
-## 测试时
+`player_join`, `player_leave`, `player_changed_dimension` carry UUID, username, fromDimension, toDimension, with nils as appropriate. `player_death` carries UUID, username, damage-type ID. Configuration/range filters apply; joining a server is not entering the detection radius.
 
-- 聊天指令要请玩家在聊天栏里真的输入；用 `cct_live_event` 注入的 `chat` 事件只能证明程序能处理你构造的参数。
-- 中文回复是否正常只能看游戏里的聊天栏：trace 里程序传出去的中文显示成 `å·…` 这样的字节序列时，游戏里就是乱码（见 `chinese-text.md`）。
+## Environment and resource sensors
+
+| Type | Method families and boundaries |
+|---|---|
+| `environment_detector` | Biome, light, time, dimension, moon, weather, entities, sleep; verify detailed schemas and tuples |
+| `block_reader` | `getBlockName`, `getBlockState`, `getBlockData`, `hasBlockEntity`; air/no block entity may produce nil, device can be disabled |
+| `geo_scanner` | `scanBlocks(radius)`, `chunkAnalyze([filter])`; fuel/cooldown/range limits; not the old `scan` name |
+| `distance_detector` | Cached `getDistance` versus main-thread `calculateDistance`; detection/laser/transparency/period/range settings |
+| `energy_detector`, `fluid_detector`, optional `gas_detector` | Transfer rate/limit/max, not stored quantity; resource-specific units |
+| `nbt_storage` | `load`, `save(snbtOrTable)`; parse/size errors and false/reason possible; not atomic filesystem persistence |
+
+Preserve the artifact's asymmetric `getIgnoreTransparent` / `setIgnoreTransparency` and misspelled `getLastTransferedId` names. Transfer detectors also expose `getReadyTransferId`. Do not silently normalize API spelling or treat a stale cached reading as a fresh measurement.

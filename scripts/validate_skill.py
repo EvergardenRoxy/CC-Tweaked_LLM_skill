@@ -11,13 +11,10 @@
 3. Reads the `luac -l` listing of each block: assigning a global is an error
    (programs must use `local`), and reading a global must name a standard Lua
    or CC: Tweaked global (catches typos such as `pirnt` or `textutil`).
-4. Checks that string literals in those blocks are ASCII only: CC terminals
-   and monitors cannot display Chinese (or other non-ASCII) text, so example
-   messages for print/error/printError must be English. Comments may use
-   any language. Blocks that load the utf8display font library (which draws
-   Chinese with pixel glyphs) are exempt.
-5. Checks SKILL.md structure: front matter, line budget, and that every
-   `references/*.md` it mentions exists.
+4. Checks active prose for untranslated CJK text and verifies local links stay
+   within the installed skill and resolve. Example/data strings may be Unicode:
+   native glyph availability and mod transport are different contracts.
+5. Checks SKILL.md structure, front matter, line budget, and reference routing.
 
 Requirements: Python 3.8+, Lua 5.2 compiler (`luac5.2` or `luac` 5.2;
 e.g. `apt install lua5.2`), network access on first run.
@@ -34,6 +31,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CACHE = ROOT / ".cache" / "tweaked.cc"
@@ -71,13 +69,14 @@ STD_GLOBALS = {
     # APIs that only exist on some devices or under the shell
     "commands", "turtle", "pocket", "shell", "multishell", "rs",
 }
-UTF8DISPLAY_RE = re.compile(r"""require\W*["']utf8display["']""")
 GLOBAL_ACCESS_RE = re.compile(r"\b(GETTABUP|SETTABUP)\b.*;\s*_ENV \"(\w+)\"")
 
 
-def fetch(path):
+def fetch(path, offline=False):
     dest = CACHE / path
     if not dest.exists():
+        if offline:
+            raise SystemExit(f"offline cache miss: {path}; run once with network access")
         print(f"downloading {SITE}{path}")
         dest.parent.mkdir(parents=True, exist_ok=True)
         req = urllib.request.Request(SITE + path, headers={"User-Agent": "cct-skill-validator/1.0"})
@@ -89,8 +88,8 @@ def fetch(path):
 def load_api(offline):
     if offline and not (CACHE / "index.html").exists():
         sys.exit("--offline given but .cache/tweaked.cc is empty; run once with network access")
-    pages = sorted(set(PAGE_RE.findall(fetch("index.html"))))
-    members = {p[: -len(".html")]: set(MEMBER_RE.findall(fetch(p))) for p in pages}
+    pages = sorted(set(PAGE_RE.findall(fetch("index.html", offline))))
+    members = {p[: -len(".html")]: set(MEMBER_RE.findall(fetch(p, offline))) for p in pages}
     api = {"__modules__": {p.split("/", 1)[1].lstrip("_") for p in members if p.startswith("module/")}}
     for name, sources in CHECKED_APIS.items():
         missing = [s for s in sources if s not in members]
@@ -160,13 +159,29 @@ def check_api_usage(code, api):
     return errors
 
 
-def check_ascii_strings(code):
-    if UTF8DISPLAY_RE.search(code):
-        return []
-    strings = []
-    strip_strings_and_comments(code, strings)
-    return [f"line {code[:pos].count(chr(10)) + 1}: non-ASCII string {lit} - CC cannot display it, use English"
-            for pos, lit in strings if not lit.isascii()]
+def check_document(md, skill_root):
+    """Check the self-contained installed documentation, not historical records."""
+    text = md.read_text(encoding="utf-8")
+    prose = re.sub(r"^```[^\n]*\n.*?^```[^\n]*$", "", text, flags=re.M | re.S)
+    errors = []
+    if re.search(r"[\u3400-\u9fff]", prose):
+        errors.append("untranslated CJK prose in active English documentation")
+    if len(re.findall(r"^```", text, re.M)) % 2:
+        errors.append("unbalanced fenced code blocks")
+    for target in re.findall(r"\[[^\]]*\]\(([^)\s]+)\)", prose):
+        target = urllib.parse.unquote(target.strip("<>"))
+        url = urllib.parse.urlsplit(target)
+        if url.scheme or url.netloc or not url.path:
+            continue
+        resolved = (md.parent / url.path).resolve()
+        try:
+            resolved.relative_to(skill_root.resolve())
+        except ValueError:
+            errors.append(f"link escapes installed skill: {target}")
+            continue
+        if not resolved.is_file():
+            errors.append(f"missing local link: {target}")
+    return errors
 
 
 def check_globals(luac, src_file, api):
@@ -220,7 +235,6 @@ def check_code_blocks(luac, api):
                 else:
                     errors += check_globals(luac, src_file, api)
                 errors += check_api_usage(body, api)
-                errors += check_ascii_strings(body)
                 if errors:
                     failures += 1
                     print(f"FAIL {md.relative_to(ROOT)}:{start}: {errors[:5]}")
@@ -252,7 +266,12 @@ def check_structure():
                 ok = False
         for f in sorted((skill_md.parent / "references").glob("*.md")):
             if f"references/{f.name}" not in refs:
-                print(f"WARN {rel}: {f.relative_to(ROOT)} is never referenced, the model will not find it")
+                print(f"FAIL {rel}: {f.relative_to(ROOT)} is never referenced")
+                ok = False
+        for md in sorted(skill_md.parent.rglob("*.md")):
+            for error in check_document(md, skill_md.parent):
+                print(f"FAIL {md.relative_to(ROOT)}: {error}")
+                ok = False
         print(f"structure: {rel} {lines} lines, {len(refs)} reference files")
     return ok
 
