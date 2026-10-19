@@ -2,22 +2,31 @@
 
 [README](README.md) · [Contents](CONTENTS.md)
 
-Install the **complete** `skills/minecraft-cc-tweaked/` folder, including `SKILL.md` and `references/`, using your agent client's supported skill directory or import UI. Do not install only the core file: its topic references are required.
+Install the **complete** `skills/minecraft-cc-tweaked/` folder, including `SKILL.md` and `references/`, through your agent client's skill directory or import screen. Do not install `SKILL.md` alone: it links to the topic references.
 
-## Directory-based clients
+## Claude Code
 
-For clients supporting Agent Skills, copy the directory into their documented skill location. For example, Codex project skills can live at `.agents/skills/minecraft-cc-tweaked/`; user-level locations and other clients vary. Follow the installed client's current documentation rather than assuming every client searches the same paths.
+Add the repository as a plugin marketplace and install the skill:
 
-For Claude Code marketplace installation, add `EvergardenRoxy/CC-Tweaked_LLM_skill` as a marketplace and install `minecraft-cc-tweaked@cct-llm-skills` using the client's plugin UI/commands. The repository preserves its existing marketplace layout.
+```text
+/plugin marketplace add EvergardenRoxy/CC-Tweaked_LLM_skill
+/plugin install minecraft-cc-tweaked@cct-llm-skills
+```
+
+## Other directory-based clients
+
+Copy the folder into the location your client documents for Agent Skills. For example, Codex project skills can live in `.agents/skills/minecraft-cc-tweaked/`. User-level locations and other clients differ; follow your client's current documentation instead of assuming every client searches the same paths.
 
 ## ZIP import
 
-Use `CCT_prompt_pack.zip` when the client supports uploading a skill archive. Its root contains `SKILL.md` and `references/`. If the client requires a folder rather than this archive layout, extract those files into a folder named `minecraft-cc-tweaked` and install it using that client's instructions.
+Use `CCT_prompt_pack.zip` from the [release page](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases) when the client accepts a skill archive. Its root contains `SKILL.md` and `references/`. If the client expects a folder instead, extract those files into a folder named `minecraft-cc-tweaked` and install that.
 
-The pack includes the active English skill only. Development audits, historical Chinese source records, raw jars, and test tooling are not runtime dependencies.
+The pack contains only the installed English skill. Development audits, historical Chinese source records, mod jars, and test tooling are not needed at runtime.
 
-## Upgrade safely
+## Upgrading
 
-Back up any locally customized installed skill. Stage the complete new folder, compare customizations, and replace the old installation as one coherent version using a recoverable local procedure. Do not overlay selected new references onto an old core or leave stale references active.
+1. Back up the installed skill if you customized it.
+2. Prepare the complete new folder and carry over any customizations you want to keep.
+3. Replace the old installation as a whole. Do not copy individual new references over an old core, and do not leave stale references in place.
 
-Do not copy development `archive/` records into the active skill directory. Check that the client discovers the skill and can resolve a reference after installation. Loading the skill does not install Minecraft mods, connect a live computer, or grant permission to control a world.
+Do not copy `archive/` records into the skill directory. After installing, check that the client finds the skill and can open a reference. Loading the skill does not install Minecraft mods, connect to a game, or grant permission to change a world.

@@ -1,5 +1,13 @@
 [简体中文](RELEASE_NOTES.zh-CN.md)
 
+# Unreleased
+
+- Reorganized `SKILL.md` (97 to 204 lines) into workflow, rules, execution model, quick reference, common mistakes, delivery format, reference map, and delivery checklist. It restores concrete guidance lost in the v1.3.0 rewrite: the Lua 5.2 syntax limits, dot versus colon (including `io` handles and `vector`), peripheral naming, events discarded while waiting, chunk unloading, version-sensitive features, and a common-mistakes table.
+- Corrected the startup rule: CraftOS runs root `startup` and the files in `/startup/` one after another, and an enabled disk startup replaces them.
+- Removed the unverified `cc.base64` version entry; the remaining version entries were checked against tweaked.cc.
+- Rewrote the README (both languages), contents overview, and installation guide for clarity, and fixed mistranslated Chinese terms.
+- The topic references are unchanged in this revision.
+
 # v1.3.0 — English skill restructuring and recipe-driven control
 
 The active skill has been rewritten in English and organized around current-environment evidence. This release includes the core and 26 focused references, plus an English default README and a linked Chinese README. Marketplace metadata is updated to 1.3.0.
