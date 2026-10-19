@@ -2,19 +2,19 @@
 
 [Artifact scope](mod-source-baseline.md) · [Storage](mod-advanced-peripherals-storage.md) · [Extensions](mod-advanced-peripherals-extended.md) · [Create integration](mod-create-ap.md) · [Method index](mod-advanced-peripherals-api.md)
 
-Contracts refer to the reviewed AP 1.21.1-0.8.2a binary. Actual methods/configuration win over a matching label or old notes. Types use snake_case, including `chat_box`, `player_detector`, `geo_scanner`, `inventory_manager`, `me_bridge`, and `rs_bridge`.
+The contracts describe the reviewed AP 1.21.1-0.8.2a jar. The installed game's actual methods and configuration override this page and older notes. Types use snake_case, including `chat_box`, `player_detector`, `geo_scanner`, `inventory_manager`, `me_bridge`, and `rs_bridge`.
 
-Common `getName`/`setName` manage AP display names, not wired network names. Use `peripheral.getName` for network identity. Common `getConfiguration()` exposes device/operation configuration. The injected `advancedperipherals` API can report Minecraft/AP/addon versions and iterate player-stat keys; availability still depends on the installation.
+The `getName`/`setName` methods that AP peripherals share manage AP's display name, not the wired network name; use `peripheral.getName` for that. `getConfiguration()` shows the device's configuration and operations. AP also adds a global `advancedperipherals` API that reports Minecraft/AP/addon versions and lists player-stat keys, where installed.
 
 ## Chat sending
 
-`chat_box.sendMessage(text [, options])` and `sendFormattedMessage(json [, options])` use an **options table**. Options include `player` (name/UUID), range, prefix, brackets (a two-character string), bracketsColor, and utf8. Old `sendMessageToPlayer`/`sendFormattedMessageToPlayer` methods are absent from this reviewed class.
+`chat_box.sendMessage(text [, options])` and `sendFormattedMessage(json [, options])` use an **options table**. Options include `player` (name or UUID), `range`, `prefix`, `brackets` (a two-character string), `bracketsColor`, and `utf8`. The older `sendMessageToPlayer`/`sendFormattedMessageToPlayer` methods do not exist in this version.
 
-`utf8=true` activates the artifact's byte-string-to-UTF-8 decoding path. Formatted JSON can alternatively use Unicode escapes. `sendToast(options)`/`sendFormattedToast(options)` require message, title, and player; formatted title/message are JSON. `narrateMessage` has its own queued behavior/delay contract.
+`utf8=true` makes AP decode the Lua string's bytes as UTF-8, so Chinese text arrives correctly. Formatted JSON can use `\uXXXX` escapes instead. `sendToast(options)`/`sendFormattedToast(options)` require message, title, and player; in the formatted version, title and message are JSON. `narrateMessage` is queued and delayed by its own rules.
 
-A true send result means the dispatch call was accepted. Recipient filtering can produce zero recipients while returning true. It is not a read/delivery receipt. Nil/reason, false, and thrown errors must remain visible; invalid JSON/brackets/length and cooldown are distinct failures.
+A `true` result means the message was dispatched; it can still reach zero players after filtering, and it is not a read receipt. Keep nil/reason, false, and raised errors visible; invalid JSON, invalid brackets, excessive length, and cooldown are different failures.
 
-Save this single-attempt adapter as `ap_reply.lua`. Queueing, bounded retry, authorization, and receipt tracking belong to the application.
+Save this single-attempt adapter as `ap_reply.lua`. Queueing, limited retries, permission checks, and delivery tracking belong to the application.
 
 ```lua
 -- ap_reply.lua: this jar uses an options table, not positional player args.
@@ -30,9 +30,9 @@ return reply
 
 ## Cooldown and configuration
 
-Do not assume the previous test's cooldown or any artifact default is the server's current value. Where exposed, inspect `getConfiguration().operations` and the actual operation keys. In this artifact `chatMessage.getCooldown()` returns remaining milliseconds; configuration entries also expose cost/default metadata. This is a returned object's function, not an invented `getOperationCooldown` peripheral method.
+Do not assume an earlier test's cooldown or the jar default is the server's value. Read `getConfiguration().operations` and its actual keys. In this version, `chatMessage.getCooldown()` on that returned table gives the remaining milliseconds, and entries also show cost and default values. There is no `getOperationCooldown` peripheral method.
 
-Send in a worker with bounded pacing/retry; do not poll configuration on every listener event. Keep a meaningful nonzero cooldown in tests of throttling/queueing.
+Send from a worker with limited pacing and retries; do not read the configuration on every event. Keep a real, nonzero cooldown when testing throttling and queueing.
 
 ## Chat events
 
@@ -42,7 +42,7 @@ The reviewed layout is:
 event, uuid, username, message, hidden, messageUtf8
 ```
 
-UUID can be nil. Prefer messageUtf8 for preserved UTF-8 input; ordinary message may already have lost characters in conversion. This event does not prepend a Create-style peripheral source. `$` hides a message and is removed by the mod; hidden does not mean authenticated.
+The UUID can be nil. Use `messageUtf8` for non-ASCII input; in `message`, characters above U+00FF are already replaced by `?`. Unlike Create events, this event does not start with the peripheral name. A message starting with `$` is hidden from other players and the `$` is removed; hidden does not mean authenticated.
 
 ```lua
 -- ap_chat_event.lua: decode the uploaded jar's event layout only.
@@ -55,32 +55,32 @@ end
 return decode
 ```
 
-This decoder intentionally targets one verified profile. Select/verify the actual layout before installing it. Finite mod/event buffers and multiple chat sources can produce loss/duplicates; use request IDs and defined retention, not a blanket lossless claim. Never execute chat text as Lua.
+This decoder targets this one AP version; check the actual layout before using it. Limited event buffers and several chat boxes can cause lost or duplicate messages; use request IDs instead of assuming nothing is lost. Never run chat text as Lua.
 
 ## Player Detector
 
 | Method family | Contract |
 |---|---|
-| `getOnlinePlayers()` | Filtered by dimension/spectator configuration; not a radius query |
-| `getPlayersInRange(range)`, `isPlayersInRange(range)` | List or boolean for configured visibility |
-| `isPlayerInRange(range, player)` | Range first; reviewed check uses axis distances, not Euclidean-sphere geometry |
+| `getOnlinePlayers()` | All online players, filtered by dimension/spectator settings; not a range query |
+| `getPlayersInRange(range)`, `isPlayersInRange(range)` | List, or boolean, of players within range |
+| `isPlayerInRange(range, player)` | Range comes first; checks distance per axis (a cube), not a sphere |
 | `getPlayersInCoords(a,b)` and boolean variants | Position tables with x/y/z |
 | `getPlayersInCubic(x,y,z)` and variants | Relative cubic extents, not arbitrary absolute world points |
-| `getPlayer(player [, detailed])` | Actual Lua alias; nil/error possible, coordinates may have configured error |
-| `getOwner([detailed])` | Owner-capable pocket/turtle contexts; may be nil for a block |
-| `getPlayerStat(...)` | Use actual stat keys/parameters; do not guess legacy IDs |
+| `getPlayer(player [, detailed])` | The Lua name in this version; may return nil or raise; coordinates may include configured inaccuracy |
+| `getOwner([detailed])` | For pocket/turtle forms that have an owner; may be nil for the block |
+| `getPlayerStat(...)` | Use real stat keys (see `advancedperipherals` API); do not guess old IDs |
 
-`player_join`, `player_leave`, `player_changed_dimension` carry UUID, username, fromDimension, toDimension, with nils as appropriate. `player_death` carries UUID, username, damage-type ID. Configuration/range filters apply; joining a server is not entering the detection radius.
+`player_join`, `player_leave`, and `player_changed_dimension` carry UUID, username, fromDimension, toDimension (nil where not applicable). `player_death` carries UUID, username, and damage-type ID. Configuration filters apply; joining the server is not entering the detection range.
 
 ## Environment and resource sensors
 
 | Type | Method families and boundaries |
 |---|---|
-| `environment_detector` | Biome, light, time, dimension, moon, weather, entities, sleep; verify detailed schemas and tuples |
-| `block_reader` | `getBlockName`, `getBlockState`, `getBlockData`, `hasBlockEntity`; air/no block entity may produce nil, device can be disabled |
-| `geo_scanner` | `scanBlocks(radius)`, `chunkAnalyze([filter])`; fuel/cooldown/range limits; not the old `scan` name |
-| `distance_detector` | Cached `getDistance` versus main-thread `calculateDistance`; detection/laser/transparency/period/range settings |
-| `energy_detector`, `fluid_detector`, optional `gas_detector` | Transfer rate/limit/max, not stored quantity; resource-specific units |
-| `nbt_storage` | `load`, `save(snbtOrTable)`; parse/size errors and false/reason possible; not atomic filesystem persistence |
+| `environment_detector` | Biome, light, time, dimension, moon, weather, entities, sleep; check the returned fields |
+| `block_reader` | `getBlockName`, `getBlockState`, `getBlockData`, `hasBlockEntity`; air or blocks without data may return nil; can be disabled in config |
+| `geo_scanner` | `scanBlocks(radius)`, `chunkAnalyze([filter])`; fuel, cooldown, and range limits; the old name `scan` is gone |
+| `distance_detector` | `getDistance` returns a cached value, `calculateDistance` measures now (main thread); settings for detection, laser, transparency, period, range |
+| `energy_detector`, `fluid_detector`, optional `gas_detector` | Transfer rate and limits, not stored amount; units depend on the resource |
+| `nbt_storage` | `load`, `save(snbtOrTable)`; parse or size errors return false/reason; not a safe replacement for files |
 
-Preserve the artifact's asymmetric `getIgnoreTransparent` / `setIgnoreTransparency` and misspelled `getLastTransferedId` names. Transfer detectors also expose `getReadyTransferId`. Do not silently normalize API spelling or treat a stale cached reading as a fresh measurement.
+Use the jar's names exactly, including the mismatched `getIgnoreTransparent` / `setIgnoreTransparency` and the misspelled `getLastTransferedId`. Transfer detectors also have `getReadyTransferId`. Do not "correct" the spelling, and do not treat a cached reading as a fresh measurement.
