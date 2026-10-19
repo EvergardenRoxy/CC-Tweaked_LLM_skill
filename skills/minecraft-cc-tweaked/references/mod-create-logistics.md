@@ -57,4 +57,4 @@ Schedule tables are converted from NBT, with snake_case fields and one-based lis
 
 Events put the source peripheral name first. Train events include `train_imminent`, `train_arrival`, `train_departure`; `train_signal_state_change` includes state. Take package and port event names and payloads from the implementation or a real trace; do not guess them.
 
-Track acceptance, creation, dispatch, physical arrival, and final accounting separately. The historical precision-mechanism test did not cover trains or logistics.
+Track acceptance, creation, dispatch, physical arrival, and final accounting separately. The historical precision-mechanism test did not validate every train and logistics feature.
