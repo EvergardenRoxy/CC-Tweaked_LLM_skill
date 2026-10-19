@@ -2,20 +2,20 @@
 
 [Core](../SKILL.md) · [Networking](networking.md)
 
-Use this page when the task includes authentication, untrusted commands, external services, or protecting consequential actions. Do not add a login system to an ordinary trusted local script without a requirement.
+Read this page when the task involves passwords, door locks, permissions, untrusted remote commands, external services, or protecting important actions. Do not add a login system to an ordinary local script unless the user asks. By default, mention the risk in one or two sentences and offer options; add security code only after the user agrees and the threat is defined.
 
 ## Define what must be protected
 
-Identify who can interact with chat/network inputs, edit computer files, access disks, break/place blocks, issue server commands, or inspect the host. An application password screen cannot prevent a player with sufficient physical/server access from replacing the program or reading its stored secrets.
+Identify who can send chat or network messages, edit the computer's files, insert disks, break or place blocks, run server commands, or read the server's files. A password screen cannot stop a player who can break the computer, boot it from a disk, or read the world save from replacing the program or reading its stored secrets.
 
-Ctrl+T suppression, an endless `pcall` loop, hidden messages, a rednet protocol name, and a computer-ID allowlist are not secure authentication. Error handling should not accidentally expose a privileged shell, but preventing termination is not a substitute for an access-control boundary.
+Blocking Ctrl+T (`os.pullEventRaw`), an endless `pcall` loop, hidden chat messages, a rednet protocol name, and a list of allowed computer IDs are not authentication: IDs and protocols can be forged by anyone in range. A crash should not drop the user into a shell on a door computer, but preventing termination does not replace access control.
 
 ## Consequential remote commands
 
-Validate schema, allowed operations, parameter bounds, and authorization separately. Bind a verified identity to the request; reject stale/replayed messages using a defined nonce/sequence policy when necessary. Persist deduplication if restart must not replay accepted commands. Log minimal audit fields rather than credentials or whole requests.
+Check the message format, the allowed operations, parameter ranges, and authorization as separate steps. Tie each request to a verified identity, and reject old or replayed messages with a nonce or sequence number when that matters. Persist deduplication records if a restart must not replay accepted commands. Log only minimal audit fields, never credentials or whole requests.
 
-Use reviewed cryptographic implementations/protocols appropriate to the installed runtime and an explicit key-management model. This skill does not provide a homemade password hash, challenge-response protocol, or encryption primitive. A toy hash, `math.random` token, or plaintext password over rednet is not a secure replacement.
+Use a reviewed cryptography library suited to the installed runtime, with a clear plan for how keys are created, stored, and replaced. This skill deliberately provides no homemade password hash, challenge-response protocol, or encryption. A toy hash, a `math.random` token, or a plaintext password over rednet is not secure.
 
-For external services, prefer an established authenticated HTTPS endpoint when appropriate. Keep credentials scoped, configurable, and out of release archives, URLs, logs, and screenshots. Ordinary computer files are not protected secret storage against someone who can read them.
+For external services, prefer an existing authenticated HTTPS service. Keep tokens narrowly scoped, configurable, and out of release archives, URLs, logs, and screenshots. Files on the computer are readable by anyone with access to it or to the world save.
 
-Downloaded code executes with the application's privileges. Pin and verify releases from a trusted source; inspect permissions and do not treat sandboxing via an empty `load` environment as a complete defense against resource exhaustion or harmful integration behavior.
+Downloaded code runs with the program's full permissions. Pin versions and verify them from a trusted source. An empty `load` environment does not protect against endless loops, memory use, or harmful peripheral calls; never `load` received messages.
