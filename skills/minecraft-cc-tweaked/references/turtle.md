@@ -4,9 +4,9 @@
 
 ## Movement and fuel
 
-Check the result of each move/turn/dig/place/attack operation. A blocked move does not advance the coordinate model. Do not automatically dig or attack whenever movement fails: the obstruction may be protected, valuable, another entity, or outside the user's authorized area.
+Check the result of every move, turn, dig, place, and attack: they return `false, reason` instead of raising errors. Update the position model only after a move succeeds. Do not dig or attack automatically whenever a move fails: the obstacle may be protected, valuable, a player or mob, or outside the area the user allowed. Falling gravel and sand need a bounded `while turtle.detect() do turtle.dig() end`.
 
-Fuel may be numeric or `"unlimited"`. Use `refuel(0)` to test a selected stack's suitability, and consume only an explicit amount when refueling is intended. Slot count, upgrades, tool side, and limits should match the installed turtle; avoid copying creative-mode assumptions into survival programs.
+Moving uses one fuel per block; turning does not. `turtle.getFuelLevel()` returns a number or `"unlimited"`; the maximum is `turtle.getFuelLimit()`. `turtle.refuel(0)` tests whether the selected item is fuel without using it; pass an explicit count when refueling. Plan fuel for the return trip. Turtles have 16 slots and two upgrade sides; check the actual upgrades and limits instead of copying creative-mode assumptions.
 
 ```lua
 local function move_forward_once()
@@ -21,14 +21,14 @@ This helper deliberately does not retry or update a navigation ledger. Consequen
 
 ## Pose and interruption
 
-GPS may establish position but not facing. Keep dimension, coordinates, and orientation explicit. Update a pose only after confirmed motion. A crash after movement but before saving makes a persisted pose uncertain; re-establish it from a trusted reference or stop. A saved step counter does not make navigation exactly once.
+GPS gives position but not facing. Track dimension, coordinates, and facing explicitly, and update them only after a confirmed move or turn. If the computer stops after a move but before saving, the saved position is uncertain: re-establish it from GPS or another trusted reference, or stop. A saved step counter does not make navigation exactly-once.
 
-Give retries a maximum count/time and a reason. Falling blocks, entities, unloaded destinations, fuel shortage, and blocked return paths need different responses. Do not write an unbounded dig-forward loop as a universal recovery mechanism.
+Give every retry a maximum count or time and a reason. Falling blocks, mobs, unloaded chunks, low fuel, and a blocked way home need different responses. An unbounded dig-forward loop is not a recovery strategy.
 
 ## Inventory and tasks
 
-Inspect all relevant slots with actual counts; reserve tools, fuel, seeds, or build materials by explicit policy. Check space before collecting, and actual drop/suck/transfer results before updating totals. A selected slot can change crafting/refueling behavior.
+Inspect the relevant slots and their real counts; reserve slots for fuel, seeds, or building materials explicitly. Check for free space before collecting, and check the results of `drop`, `suck`, and transfers before updating totals. The selected slot affects digging, placing, refueling, and crafting.
 
-For mining, define a permitted volume and return route. For farming, inspect actual block states and the pack's growth/seed rules. For crafting, confirm the effective recipe and grid arrangement. For building, validate block identity, orientation, replaceability, and remaining materials. Vanilla examples are not assertions about modded recipes or protected-server behavior.
+For mining, define the allowed volume and the return route; the ROM `excavate` and `tunnel` programs may already be enough. For farming, read block states with `turtle.inspect` (crop `age`) and the pack's growth rules. For crafting (crafty turtle), confirm the effective recipe and grid layout. For building, check block identity, orientation, replaceability, and remaining materials. Vanilla examples say nothing about modded recipes or protected servers.
 
-Chunk loading and restart depend on server configuration and installed upgrades. A turtle chunk loader may cover only a configured area; it does not prove an entire factory/return route stays loaded. AP extensions are separate peripheral/plugin methods, not additions automatically available on `turtle.*`.
+Turtles do not keep chunks loaded by themselves; when the chunk unloads the program stops and restarts from `startup` on reload. A chunk-loading upgrade covers only its configured radius, not a whole factory or return route. AP upgrades add peripheral methods, not new `turtle.*` functions.
