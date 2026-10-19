@@ -2,40 +2,40 @@
 
 [AP](mod-advanced-peripherals.md) · [Artifact scope](mod-source-baseline.md) · [Index](mod-advanced-peripherals-api.md)
 
-This page routes capabilities; it does not require installing every addon. Annotated classes can represent returned objects, plugins, or optional integrations. Verify registration, owner/device form, permissions, costs, and argument contracts before acting.
+This page points to AP features; it does not mean every addon must be installed. Classes in the index can be returned objects, plugins, or optional integrations. Before acting, confirm the feature is registered, which device form has it, permissions, costs, and argument formats.
 
 ## Turtles, pocket devices, and automata
 
-Block, pocket, and turtle forms can differ in ownership, fuel, adjacent-side interpretation, and available methods. AP methods are not automatically `turtle.*` methods.
+Block, pocket, and turtle versions of a peripheral can differ in owner, fuel, what "front" means, and available methods. AP turtle upgrades are wrapped as peripherals; their methods are not added to `turtle.*`.
 
-- `compass.getFacing()` reports facing.
-- `chunky.getRadius()` reports configured chunk-loading radius. The unit is chunks; coverage is not a guarantee that an entire factory or route stays loaded.
-- FuelAbility methods such as `getFuelLevel`, `getMaxFuelLevel`, and consumption-rate accessors have AP-specific semantics distinct from native turtle fuel.
-- Automata tier/plugins determine available behavior. Weak/End/Husbandry/Overpowered cores are not interchangeable capability sets.
+- `compass.getFacing()` returns the turtle's facing direction.
+- `chunky.getRadius()` returns the configured chunk-loading radius in chunks; it does not keep a whole factory or route loaded.
+- FuelAbility methods (`getFuelLevel`, `getMaxFuelLevel`, consumption rate) follow AP's rules and differ from `turtle.getFuelLevel`.
+- An automata core's type decides its abilities; weak, end, husbandry, and overpowered cores have different method sets.
 
 | Plugin area | Examples | Confirm before use |
 |---|---|---|
-| Blocks | dig/use/update/place | Relative target, cost, protection, material effects |
-| Observation | lookAtBlock/lookAtEntity | Range/raycast and returned fields |
-| Animals | inspect/search/use | Target selection, tools, interaction conditions |
-| Capture/release | captureAnimal/releaseAnimal | Existing carried state and interrupted effects |
-| Drops | scan/collect | Separate observation from collection; capacity/partial success |
-| Energy/souls | chargeTurtle/feedSoul | Resource type and survival costs |
-| Teleportation | save/list/delete points, warp/estimate cost, portal phases | Dimension, fuel, stage identity, authorization and recovery |
+| Blocks | dig/use/update/place | Target direction, cost, protected areas, effect on materials |
+| Observation | lookAtBlock/lookAtEntity | Range and returned fields |
+| Animals | inspect/search/use | Which animal is targeted, tools, conditions |
+| Capture/release | captureAnimal/releaseAnimal | Whether one is already carried; interruption |
+| Drops | scan/collect | Scanning is not collecting; space and partial success |
+| Energy/souls | chargeTurtle/feedSoul | Resource type and cost in survival |
+| Teleportation | save/list/delete points, warp, estimate cost, portals | Dimension, fuel, permission, recovery after failure |
 
-Do not probe destructive calls, capture, teleport, or point deletion just to discover capability. A core-runtime simulator does not validate AP movement/teleportation.
+Never call digging, capture, teleport, or point deletion just to see whether it works. A CC:T simulator cannot test AP movement or teleportation.
 
 ## Saddle and smart rail
 
-`saddle` capture/release/rider queries are stateful and may have cooldowns. `smart_rail` cart queries and state/activation setters manage vanilla minecarts, not Create trains. Read actual state enums and configuration rather than guessing names from numeric values.
+`saddle` capture, release, and rider methods change state and may have cooldowns. `smart_rail` manages vanilla minecarts, not Create trains. Read the actual state names and configuration instead of guessing from numbers.
 
 ## Smart glasses
 
-The injected `smartglasses` API depends on binding/wearing and exposes owner/equipment and supported smart equipment operations. Do not create a fake same-named global when absent.
+The global `smartglasses` API exists only while the glasses are bound and worn; it covers the owner, equipment, and supported operations. Do not define a fake global of that name when it is missing.
 
-The `smart_glasses` peripheral returns module objects via `getModules`, `hasModule`, `getModule`; take IDs from actual results. Overlay modules manage text/rectangle/line/item/block/sphere objects with their own coordinate/property methods. Batch changes and use explicit update or verified auto-update behavior. They are not CC monitors.
+The `smart_glasses` peripheral returns module objects through `getModules`, `hasModule`, and `getModule`; take module IDs from those results. The overlay module manages text, rectangle, line, item, block, and sphere objects, each with its own coordinate and property methods. Batch changes, then update explicitly unless auto-update is confirmed. It is not a CC monitor.
 
-Keyboard/night-vision and other modules have separate contracts. Actual GUI placement, input events, eye/world coordinates, fonts, and client rendering require game verification.
+Keyboard, night-vision, and other modules have their own methods. Placement on screen, input events, view and world coordinates, fonts, and rendering must be checked in the game.
 
 ## Optional integrations
 
@@ -43,10 +43,10 @@ Keyboard/night-vision and other modules have separate contracts. Actual GUI plac
 |---|---|---|
 | Create | Basin/burner/tank/filter/scroll | [Create with AP](mod-create-ap.md) |
 | AE2 / Refined Storage | Storage and crafting | [AP storage](mod-advanced-peripherals-storage.md) |
-| Mekanism | Chemicals and radiation | Explicit unsupported result when unavailable |
-| MineColonies | Colony, citizen, building, work/request/research data | Check colony membership, range, activity, and access separately |
-| Curios | Player accessory slots | Do not substitute vanilla slot numbering |
-| Powah / DimStorage | Energy/dimensional handlers | Verify current installed integration |
-| Vanilla beacon/noteblock | Beacon state and note operations | Main-thread actions and actual schemas |
+| Mekanism | Chemicals and radiation | Methods raise an error when Mekanism is absent |
+| MineColonies | Colony, citizen, building, work order, request, research data | Check colony membership, range, and access separately |
+| Curios | Player accessory slots | Not the same as vanilla slot numbers |
+| Powah / DimStorage | Energy and dimensional storage | Check that the integration is loaded |
+| Vanilla beacon/note block | Beacon level and effects; note changes and playing | Main-thread methods; check return fields |
 
-Use only domains the user's task needs. The presence of these classes in a jar/index is not evidence that the current pack loads all dependencies or that these paths were tested live.
+Use only what the task needs. A class appearing in the jar or index does not mean the pack loads that dependency, or that this path was tested in a game.
