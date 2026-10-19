@@ -6,25 +6,25 @@
 
 | Layer | Provider | Examples |
 |---|---|---|
-| Generic capabilities | CC:T and exposed block handlers | `inventory`, `fluid_storage` |
-| Native Create | Create ComputerBehaviour | Motion, DisplayLink, logistics, trains |
-| Additional Create capabilities | AP Create integration | Basin, burner, tank, filtering and scroll behaviors |
+| Generic capabilities | CC:T's generic handlers | `inventory`, `fluid_storage` |
+| Create's own integration | Create (`ComputerBehaviour`) | Motion, Display Link, logistics, trains |
+| Extra Create capabilities | AP's Create integration | Basin, blaze burner, fluid tank, filter and scroll settings |
 
-The reviewed AP integration registers five GenericSource groups. An internal ID such as `advancedperipherals:basin` differs from the added peripheral type **`basin`**. Dedicated/native registration and generic-source priority can affect the final method set; do not promise every Create block exposes all layers simultaneously.
+The reviewed AP jar adds five groups of generic methods. Its internal ID `advancedperipherals:basin` is not the peripheral type; the type is **`basin`**. Which methods a block finally has depends on how Create and AP register them, so do not promise that every Create block offers all layers at once.
 
-Inspect `getType`, `hasType`, and `getMethods` on the selected network name. A method named `info` has device-specific fields, not one universal schema.
+Check `getType`, `hasType`, and `getMethods` on the selected network name. The fields returned by `info` differ per device.
 
 ## AP-added contracts
 
 | Added type | Methods | Meaning |
 |---|---|---|
-| `basin` | `inputTanks()`, `outputTanks()` | Separate input/output fluid entries; no recipe-progress API |
+| `basin` | `inputTanks()`, `outputTanks()` | Input and output fluids listed separately; no recipe progress |
 | `blaze_burner` | `info()` | fuelType, heatLevel, remainingBurnTime, isCreative |
 | `fluid_tank` | `info()` | Controller size, capacity, fluid, boiler; boiler includes active, supply, activeHeat, passiveHeat, engines |
-| `filtering_behaviour` | `getFilter()`, `setFilter([table])` | Create-specific filter protocol; true or false/reason, and possible exception |
-| `scroll_behaviour` | `getScrollValue()`, `setScrollValue(integer)` | Actual behavior's meaning/limits; void setter, not universally RPM |
+| `filtering_behaviour` | `getFilter()`, `setFilter([table])` | Create's own filter format; returns true, or false and a reason, and may raise an error |
+| `scroll_behaviour` | `getScrollValue()`, `setScrollValue(integer)` | Meaning and limits depend on the block; the setter returns nothing; not always RPM |
 
-These reviewed methods are main-thread. Reading state can yield too. Heat/fluid availability is not proof a recipe completed.
+These methods run on the main thread, so even reads yield. Heat or fluid being present does not prove a recipe completed.
 
 ## CreateFilter is a distinct schema
 
@@ -32,27 +32,27 @@ These reviewed methods are main-thread. Reading state can yield too. Heat/fluid 
 
 | Type | Shape | Boundary |
 |---|---|---|
-| `item` | `item={name="minecraft:iron_ingot"}` | Component update protocol is not necessarily a blind read/write round trip |
-| `list` | filters, blacklist, ignoreNBT | Nested CreateFilters; matching physical filter item may be required |
-| `attribute` | mode, attributes | Use actual supported enums/codecs |
-| `package` | address | Requires suitable package-filter item |
+| `item` | `item={name="minecraft:iron_ingot"}` | Writing back a table you read does not necessarily reproduce the same filter |
+| `list` | filters, blacklist, ignoreNBT | Nested CreateFilters; may require the matching physical filter item |
+| `attribute` | mode, attributes | Use only the supported mode and attribute values |
+| `package` | address | Requires a package filter item |
 
-`setFilter(nil)` clears the filter. Count is constrained by the underlying behavior. A physical filter-type mismatch may be a business rejection; do not discard the user's filter item to bypass it.
+`setFilter(nil)` clears the filter. The block limits `count`. If the physical filter item is the wrong kind, the call returns false with a reason; do not throw away the user's filter item to get around it.
 
-This schema is not AP ItemFilter and not StockTicker's `_requestCount` filter. Translate explicitly if connecting subsystems.
+This format is neither AP's ItemFilter nor the Stock Ticker's `_requestCount` filter; convert explicitly between them.
 
 ## Derive the production controller
 
-Use [effective recipes and production control](recipes-and-production.md) for precision mechanisms and all similar jobs. The bundled ingredient list, repetitions, weights, and failure results are only a reference; the controller must use the current pack's confirmed profile. No fixed loop count or success probability is an acceptance criterion for every installation.
+Follow [effective recipes and production control](recipes-and-production.md) for precision mechanisms and similar jobs. The default ingredients, loop count, weights, and failure outputs in the jar are only a reference; the controller must use the current pack's confirmed recipe. No fixed loop count or success rate is a pass criterion for every installation.
 
-The previous single-work-surface/shared-deployer test illustrates staged auxiliary feeding; it does not mandate that topology. Confirm workpiece progress, auxiliary leftovers, actual transfer counts, output identities, and authorized pause mechanism before automating.
+The earlier test with one work surface and a shared deployer shows how to feed extra inputs in stages; it does not require that layout. Before automating, confirm how progress is read, leftovers of extra inputs, actual transfer counts, output IDs, and the allowed way to pause.
 
-Use one material-action owner, a responsive listener with bounded acceptance, and observation/render workers. If replies can wait on cooldown, give them bounded pending work and an explicit outcome policy. Successful chat submission, inventory sampling, and display submission are separate from production settlement.
+Use one task for all material actions, a responsive listener with a bounded queue, and separate workers for reading and display. If chat replies can wait on a cooldown, keep them in a bounded queue with a defined outcome when it fills. A sent chat message, an inventory reading, and a display update are not production results.
 
-Native monitor glyph restrictions do not apply automatically to mod displays/chat. Use the reviewed AP options or JSON path and Create byte-table path only after confirming the actual binary contracts. Test one short message and a multiline display before building the complete UI.
+The native monitor's lack of Chinese does not apply to mod displays and chat. Use AP's `utf8` option or JSON path and Create's byte-table path after confirming them on the installed versions. Test one short message and a multi-line display before building the whole UI.
 
 ## Joint acceptance
 
-Cover exact methods/event layouts; nil/false/exception boundaries; realistic cooldown and unique request IDs; full configured sequence and actual delivered outputs; unknown output; shortages/full destinations; partial transfers; disconnection; and the relevant final-processing/persistence windows.
+Cover the exact methods and event layouts; nil, false, and error results; a realistic cooldown and unique request IDs; the full configured sequence and actual delivered output; unexpected output; shortages and full destinations; partial transfers; disconnection; and interruptions around the last processing step and saving.
 
-Preserve the real adapters in fault tests. A scripted fixture or an old passing game test does not prove the newly supplied Java binaries or current effective recipes work in Minecraft.
+Keep the real adapters in fault tests. A scripted fixture or an old passing game test does not prove that new mod jars or the current recipes work in Minecraft.
