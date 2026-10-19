@@ -21,7 +21,7 @@ This repository turns the execution model, APIs, peripherals, turtles, networkin
 > [!IMPORTANT]
 > **AI production disclosure: CC: Tweaked LLM Skill uses generative AI to assist with content creation, code validation, and documentation.** AI-generated or modified content is reviewed and verified by the project maintainer, who retains final responsibility for its maintenance.
 
-> **Current release: [v1.3.0](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/tag/v1.3.0)** (2026-10). The skill is written in English: a core `SKILL.md` plus 26 topic references, with Create and Advanced Peripherals guides tied to the reviewed jars and production control derived from the modpack's effective recipes. The source tree also contains unreleased changes; see the [release notes](RELEASE_NOTES.md) ([中文](RELEASE_NOTES.zh-CN.md)).
+> **Current release: [v1.3.1](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/tag/v1.3.1)** (2026-10). A documentation-quality release: `SKILL.md` is reorganized and the concrete CC:T guidance lost in the v1.3.0 rewrite is restored, and all 26 references, both READMEs, and the installation guide are rewritten in clear language. See the [release notes](RELEASE_NOTES.md) ([中文](RELEASE_NOTES.zh-CN.md)).
 
 ---
 
@@ -57,7 +57,7 @@ The skill follows the open [Agent Skills](https://agentskills.io) format. Instal
 /plugin install minecraft-cc-tweaked@cct-llm-skills
 ```
 
-For clients that import an archive, download [CCT_prompt_pack.zip](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/download/v1.3.0/CCT_prompt_pack.zip); its root contains `SKILL.md` and `references/`. Check it against the release's [SHA256SUMS](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/download/v1.3.0/SHA256SUMS).
+For clients that import an archive, download [CCT_prompt_pack.zip](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/download/v1.3.1/CCT_prompt_pack.zip); its root contains `SKILL.md` and `references/`. Check it against the release's [SHA256SUMS](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/download/v1.3.1/SHA256SUMS).
 
 [Installation and upgrades](INSTALL.md) covers directory and archive installs, including Codex. Paths and support differ between clients; follow your client's documentation. Upgrade by replacing the whole folder so old and new references are never mixed.
 

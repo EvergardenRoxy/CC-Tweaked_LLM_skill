@@ -1,42 +1,43 @@
 [简体中文](RELEASE_NOTES.zh-CN.md)
 
-# Unreleased
+# v1.3.1 — Documentation correction and restored guidance
 
-- Reorganized `SKILL.md` (97 to 204 lines) into workflow, rules, execution model, quick reference, common mistakes, delivery format, reference map, and delivery checklist. It restores concrete guidance lost in the v1.3.0 rewrite: the Lua 5.2 syntax limits, dot versus colon (including `io` handles and `vector`), peripheral naming, events discarded while waiting, chunk unloading, version-sensitive features, and a common-mistakes table.
-- Corrected the startup rule: CraftOS runs root `startup` and the files in `/startup/` one after another, and an enabled disk startup replaces them.
-- Removed the unverified `cc.base64` version entry; the remaining version entries were checked against tweaked.cc.
-- Rewrote the README (both languages), contents overview, and installation guide for clarity, and fixed mistranslated Chinese terms.
-- Revised all 26 references. Garbled or machine-like sentences were rewritten, and concrete guidance lost in v1.3.0 was restored: beginner input places and errors, server options, `/computercraft` commands and a version table, where Chinese text works and why, monitor layout rules, design constraints and patterns, and real error messages in troubleshooting. Lua examples are unchanged; the generated index headers were updated in `scripts/inspect_mod_jars.py` too.
+v1.3.0 rewrote the skill in English, but the rewrite left many sentences garbled or machine-like and dropped much of the concrete CC:T knowledge the earlier Chinese skill contained. This release fixes the wording throughout and restores that knowledge while keeping v1.3.0's evidence and production-safety rules. The skill structure (core plus 26 references) and the Lua examples are unchanged. Marketplace metadata is updated to 1.3.1.
 
-# v1.3.0 — English skill restructuring and recipe-driven control
+## Core `SKILL.md`
 
-The active skill has been rewritten in English and organized around current-environment evidence. This release includes the core and 26 focused references, plus an English default README and a linked Chinese README. Marketplace metadata is updated to 1.3.0.
+- Reorganized (97 to 204 lines) into workflow, rules, execution model, quick reference, common mistakes, delivery format, reference map, and delivery checklist.
+- Restored concrete guidance: Lua 5.2 syntax limits and missing functions, dot versus colon (including `io` handles, `vector`, and string methods), side and network peripheral names, results that fail without raising errors, events discarded while waiting, sparse inventories and name-string transfers, turtle fuel and `"unlimited"`, chunk unloading, a version-sensitive feature table, and a common-mistakes table.
+- Corrected the startup rule: CraftOS runs root `startup` and the files in `/startup/` one after another, and an enabled disk startup replaces them, so adding a file under `/startup/` does not run beside a long-running launcher.
+- Removed the unverified `cc.base64` entry; the remaining version entries were checked against tweaked.cc.
 
-- Added a recipe-driven production guide. Current pack/server recipes, tags, steps, repetitions, outputs, and probability semantics must be confirmed before control. Precision-mechanism defaults are no longer hardcoded general rules or universal acceptance criteria.
-- Replaced repetitive template collections with focused patterns and explicit adaptation boundaries. Removed homemade authentication/hash examples, unbounded destructive retries, and unsupported safety/exactly-once claims.
-- Kept reliability lessons: save failure blocks new actions, corrupt production state is preserved, uncertain effects are reconciled, API business results differ from pcall, and accepted work is not silently discarded.
-- Corrected startup coexistence guidance, cooperative-scheduling guarantees, native glyph versus UTF-8 transport claims, default-limit assumptions, and test-evidence overclaims.
-- Rewrote the Create/AP guides and generated method-index prose in English while retaining reviewed artifact scope, version-specific contracts, inherited/object-method boundaries, and optional dependencies.
-- Renamed the former Chinese-text and template references to `text-and-encoding.md` and `patterns.md`. Updated repository entry points and packaging validation. Historical source records remain outside the installed skill.
+## References
+
+- Rewrote garbled or machine-like sentences in all 26 references, for example "No connection implies invented methods" in the Create guide and "Do not claim testing or repeatedly promote optional tools" in the testing guide.
+- Restored lost material:
+  - Getting started: the shell, `lua` prompt, and editor; how to read signatures; external-editor save paths; beginner errors.
+  - Configuration and versions: common server options (marked as defaults to verify), `/computercraft` commands, datapack ROM extensions, the version table, and the Lua compatibility table.
+  - Text and encoding: where Chinese text works and why, at the byte level, with glyph libraries as an option that has prerequisites.
+  - UI design: monitor layout rules learned from user feedback.
+  - Design: CC's hard constraints, five failure questions, the pattern list, and how to review code.
+  - Troubleshooting: real error messages such as `attempt to index nil` and `attempt to call nil`.
+- Added concrete details to peripherals, the API guide, networking, and turtles, such as wired-modem setup, `fs` versus `io` handle syntax, GPS host requirements, and closing HTTP error responses.
+- Where a rewrite would have stated more than the reviewed evidence supports, the original scope was kept.
+- The generated method-index headers were reworded in `scripts/inspect_mod_jars.py` as well, so the indexes still match the generator.
+
+## Repository documentation
+
+- Rewrote both READMEs, the contents overview, and the installation guide. Fixed mistranslated Chinese terms such as "活动 Skill" and "附件基线".
+- Moved the v1.3.0 notes to the [archive](archive/releases/v1.3.0.md).
 
 > [!IMPORTANT]
 > **AI production disclosure: CC: Tweaked LLM Skill uses generative AI to assist with content creation, code validation, and documentation.** AI-generated or modified content is reviewed and verified by the project maintainer, who retains final responsibility for its maintenance.
 
-## Documentation correction
-
-The default English README and Chinese README restore the original project presentation: badges, introduction, design philosophy, prominent AI production disclosure, capability table, installation commands, companion-tool guidance, validation, acknowledgments, and license. Outdated versions and unsupported claims remain removed. The v1.3.0 release page now includes complete Chinese and English notes. These documentation corrections do not change the published skill pack or its checksum.
-
 ## Validation
 
-Run the commands in [README](README.md#accuracy-and-validation). Static checks, extracted Lua examples, scripted mod boundaries, and game observations establish different claims. The supplied Java mods and the current server's effective recipes are not executed by the documentation example tests.
+- `validate_skill.py`: core 204 lines, 26 routed references; all 14 Lua blocks pass Lua 5.2 syntax, selected official-API, and global-variable checks.
+- `test_validator.py`: all 10 regression cases pass.
+- `package_skill.py`: the prompt pack contains exactly 27 Markdown files; paths, CRCs, and byte equality with the source are verified.
+- The Lua example bodies are unchanged from v1.3.0. The cct-run example suites (22 reliability assertions, 17 mod-adapter checks) were not re-run for this release.
 
-Local verification of this source revision:
-
-- Core: 97 lines; 26 routed English reference files; all 12 Lua blocks pass Lua 5.2 syntax, selected official-API, and global-variable checks.
-- Ten validator regression cases pass, including Unicode data, untranslated prose, missing/escaping links, unbalanced fences, and offline cache behavior.
-- cct-run 0.2.4 / CC:T 1.120.2: 22 reliability assertions pass, including save gating, tuple preservation, file open/read/write/close faults, and non-finite configuration values. The dashboard accepts its selected monitor/keyboard inputs and ignores an unrelated monitor.
-- Seventeen scripted mod-adapter assertions and trace checks pass for UTF-8 byte tables, row/column order, failed-render retry, AP options, event layout, and nil/false/exception handling. These do not execute the Java mods or validate game physics/rendering.
-- Both English indexes reproduce from the reviewed jars; audit metadata is unchanged and wrong-baseline hashes are rejected. Original archived mod bodies and published release text are preserved.
-- The prompt pack contains exactly 27 active Markdown files; paths, local references, CRCs, and byte equality with source are verified. Historical archives, audit inputs, and caches are excluded.
-
-[Published release records through 1.2.2](archive/releases/through-1.2.2.md) are preserved in their original language as historical evidence.
+Earlier notes: [v1.3.0](archive/releases/v1.3.0.md) · [through 1.2.2](archive/releases/through-1.2.2.md).

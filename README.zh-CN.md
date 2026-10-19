@@ -21,7 +21,7 @@
 > [!IMPORTANT]
 > **AI 制作声明：CC: Tweaked LLM Skill 采用生成式 AI 参与内容编写、代码校验与文档撰写。** AI 生成或修改的内容由项目维护者审阅、验证并承担最终维护责任。
 
-> **当前发行版：[v1.3.0](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/tag/v1.3.0)**（2026-10）。Skill 正文为英文，由核心 `SKILL.md` 和 26 篇专题参考组成；Create 与 Advanced Peripherals 指南对应已审查的 jar 版本，生产控制依据整合包中实际生效的配方推导。源码中另有尚未发布的改动，详见[中文发行说明](RELEASE_NOTES.zh-CN.md)或 [English release notes](RELEASE_NOTES.md)。
+> **当前发行版：[v1.3.1](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/tag/v1.3.1)**（2026-10）。文档质量修订版：重新组织 `SKILL.md`，恢复 v1.3.0 改写时丢失的 CC:T 具体指导，并用清楚的语言重写全部 26 篇参考文档、中英文 README 和安装说明。详见[中文发行说明](RELEASE_NOTES.zh-CN.md)或 [English release notes](RELEASE_NOTES.md)。
 
 ---
 
@@ -57,7 +57,7 @@ Skill 采用**渐进式加载**：`SKILL.md`（204 行）包含工作流程、�
 /plugin install minecraft-cc-tweaked@cct-llm-skills
 ```
 
-支持导入压缩包的客户端可下载 [CCT_prompt_pack.zip](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/download/v1.3.0/CCT_prompt_pack.zip)，其根目录包含 `SKILL.md` 和 `references/`；可用发行版附带的 [SHA256SUMS](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/download/v1.3.0/SHA256SUMS) 核对校验和。
+支持导入压缩包的客户端可下载 [CCT_prompt_pack.zip](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/download/v1.3.1/CCT_prompt_pack.zip)，其根目录包含 `SKILL.md` 和 `references/`；可用发行版附带的 [SHA256SUMS](https://github.com/EvergardenRoxy/CC-Tweaked_LLM_skill/releases/download/v1.3.1/SHA256SUMS) 核对校验和。
 
 [安装与升级](INSTALL.md)说明了目录安装和压缩包导入方法，包括 Codex。各客户端的支持情况和路径不同，以客户端文档为准。升级时整体替换文件夹，避免新旧参考文件混用。
 
