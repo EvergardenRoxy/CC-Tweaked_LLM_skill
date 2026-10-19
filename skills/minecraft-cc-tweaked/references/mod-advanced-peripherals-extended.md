@@ -8,7 +8,7 @@ This page points to AP features; it does not mean every addon must be installed.
 
 Block, pocket, and turtle versions of a peripheral can differ in owner, fuel, what "front" means, and available methods. AP turtle upgrades are wrapped as peripherals; their methods are not added to `turtle.*`.
 
-- `compass.getFacing()` returns the turtle's facing direction.
+- `compass.getFacing()` returns the facing direction.
 - `chunky.getRadius()` returns the configured chunk-loading radius in chunks; it does not keep a whole factory or route loaded.
 - FuelAbility methods (`getFuelLevel`, `getMaxFuelLevel`, consumption rate) follow AP's rules and differ from `turtle.getFuelLevel`.
 - An automata core's type decides its abilities; weak, end, husbandry, and overpowered cores have different method sets.
@@ -43,7 +43,7 @@ Keyboard, night-vision, and other modules have their own methods. Placement on s
 |---|---|---|
 | Create | Basin/burner/tank/filter/scroll | [Create with AP](mod-create-ap.md) |
 | AE2 / Refined Storage | Storage and crafting | [AP storage](mod-advanced-peripherals-storage.md) |
-| Mekanism | Chemicals and radiation | Methods raise an error when Mekanism is absent |
+| Mekanism | Chemicals and radiation | Without Mekanism, calls report "unsupported" instead of zero |
 | MineColonies | Colony, citizen, building, work order, request, research data | Check colony membership, range, and access separately |
 | Curios | Player accessory slots | Not the same as vanilla slot numbers |
 | Powah / DimStorage | Energy and dimensional storage | Check that the integration is loaded |
