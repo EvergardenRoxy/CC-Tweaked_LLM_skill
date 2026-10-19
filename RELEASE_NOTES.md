@@ -1,3 +1,5 @@
+[简体中文](RELEASE_NOTES.zh-CN.md)
+
 # v1.3.0 — English skill restructuring and recipe-driven control
 
 The active skill has been rewritten in English and organized around current-environment evidence. This release includes the core and 26 focused references, plus an English default README and a linked Chinese README. Marketplace metadata is updated to 1.3.0.
@@ -9,9 +11,16 @@ The active skill has been rewritten in English and organized around current-envi
 - Rewrote the Create/AP guides and generated method-index prose in English while retaining reviewed artifact scope, version-specific contracts, inherited/object-method boundaries, and optional dependencies.
 - Renamed the former Chinese-text and template references to `text-and-encoding.md` and `patterns.md`. Updated repository entry points and packaging validation. Historical source records remain outside the installed skill.
 
+> [!IMPORTANT]
+> **AI production disclosure: CC: Tweaked LLM Skill uses generative AI to assist with content creation, code validation, and documentation.** AI-generated or modified content is reviewed and verified by the project maintainer, who retains final responsibility for its maintenance.
+
+## Documentation correction
+
+The default English README and Chinese README restore the original project presentation: badges, introduction, design philosophy, prominent AI production disclosure, capability table, installation commands, companion-tool guidance, validation, acknowledgments, and license. Outdated versions and unsupported claims remain removed. The v1.3.0 release page now includes complete Chinese and English notes. These documentation corrections do not change the published skill pack or its checksum.
+
 ## Validation
 
-Run the commands in [README](README.md#development). Static checks, extracted Lua examples, scripted mod boundaries, and game observations establish different claims. The supplied Java mods and the current server's effective recipes are not executed by the documentation example tests.
+Run the commands in [README](README.md#accuracy-and-validation). Static checks, extracted Lua examples, scripted mod boundaries, and game observations establish different claims. The supplied Java mods and the current server's effective recipes are not executed by the documentation example tests.
 
 Local verification of this source revision:
 
