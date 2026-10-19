@@ -6,7 +6,7 @@
 - Corrected the startup rule: CraftOS runs root `startup` and the files in `/startup/` one after another, and an enabled disk startup replaces them.
 - Removed the unverified `cc.base64` version entry; the remaining version entries were checked against tweaked.cc.
 - Rewrote the README (both languages), contents overview, and installation guide for clarity, and fixed mistranslated Chinese terms.
-- Revised references: getting started, configuration and versions (server options, `/computercraft` commands, version table), events, text and encoding (where Chinese text works and why), Create, Create logistics, testing, peripherals, API guide, networking, turtles, and troubleshooting. Garbled sentences were fixed and lost concrete details restored.
+- Revised all 26 references. Garbled or machine-like sentences were rewritten, and concrete guidance lost in v1.3.0 was restored: beginner input places and errors, server options, `/computercraft` commands and a version table, where Chinese text works and why, monitor layout rules, design constraints and patterns, and real error messages in troubleshooting. Lua examples are unchanged; the generated index headers were updated in `scripts/inspect_mod_jars.py` too.
 
 # v1.3.0 — English skill restructuring and recipe-driven control
 
