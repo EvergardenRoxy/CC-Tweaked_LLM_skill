@@ -4,7 +4,7 @@
 
 ## Bind the intended device
 
-A directly attached device can be addressed by side. Remote wired devices use their actual network names. Enable the wired modem connections and verify visibility; a guessed block name is not a network name.
+A device touching the computer is addressed by its side (`top`, `left`, ...). A device on a wired network uses its network name, such as `minecraft:chest_0`. Attach a wired modem to each device, connect them with cable, and right-click each modem to connect it; it shows the name in chat. A guessed block name is not a network name.
 
 ```lua
 local names = peripheral.getNames()
@@ -17,19 +17,19 @@ for _, name in ipairs(names) do
 end
 ```
 
-Store a chosen name and role in configuration. Recheck presence, types, and required methods at startup and after `peripheral`/`peripheral_detach` events. A wrapper can fail after a successful presence check; protect calls where disappearance is recoverable.
+Store the chosen name and its role in configuration. Recheck presence, types, and required methods at startup and after `peripheral`/`peripheral_detach` events. A device can disappear right after a successful check, so wrap calls in `pcall` where the program should survive that.
 
-`peripheral.find` can return several results. It is convenient for a genuinely unique optional device; using its first result is unsafe when the choice controls physical equipment. A custom mod display name may not be the wired network name.
+`peripheral.find` returns every match. Taking the first is fine when exactly one such device exists, but unsafe when the choice controls machinery. A display name set in a mod is not the network name.
 
 ## Generic handlers
 
 | Type | Methods | Semantics |
 |---|---|---|
-| `inventory` | `size`, `list`, `getItemDetail`, `getItemLimit`, `pushItems`, `pullItems` where supported | `list` is sparse; transfers return actual moved count |
-| `fluid_storage` | `tanks`, `pushFluid`, `pullFluid` | Tank tables may be sparse; confirm resource identity and units |
-| `energy_storage` | `getEnergy`, `getEnergyCapacity` | Stored energy/capacity differ from transfer rate; confirm units |
+| `inventory` | `size`, `list`, `getItemDetail`, `getItemLimit`, `pushItems`, `pullItems` where supported | `list` is sparse; transfers return the count actually moved |
+| `fluid_storage` | `tanks`, `pushFluid`, `pullFluid` | Tank tables may be sparse; amounts are in mB; check the fluid name |
+| `energy_storage` | `getEnergy`, `getEnergyCapacity` | Stored amount and capacity (usually FE), not a transfer rate |
 
-Transfers use a destination/source **network name string**, not a wrapped object. Slot numbers are one-based for core inventory methods. Specialized machine handlers may expose different input/output access or reject some slots.
+Transfers take the other inventory's **network name string**, not a wrapped object, and both inventories must be on the same wired network. Slot numbers start at 1. Machine inventories may only accept some slots or expose only their inputs or outputs.
 
 ```lua
 local function totals(inv)
@@ -42,24 +42,24 @@ end
 return totals
 ```
 
-This groups by item ID only. Include relevant components/fingerprint when distinct variants must remain separate. Read details only for selected slots; field availability and NBT/component representation change with versions and handlers.
+This groups by item ID only. Include components or the `nbt` hash when variants (enchanted, damaged, named) must stay separate. `getItemDetail` is slower, so call it only for the slots you need; its fields change between versions.
 
-For a move, validate source, destination, item predicate, and requested limit. A returned zero means no movement; a partial count means partial movement. An exception can leave completion uncertain. Read back the affected locations before a consequential retry; see [recovery](state-and-recovery.md).
+Before a move, check the source, destination, item, and limit. A returned zero means nothing moved; a smaller count means a partial move. If the call raises an error, the move may or may not have happened: read the affected inventories back before retrying anything consequential (see [recovery](state-and-recovery.md)).
 
 ## Other core devices
 
 | Device | Use | Checks |
 |---|---|---|
-| `monitor` | Terminal-like rendering, advanced touch | `getSize` columns then rows; scale/resize and source name |
-| `speaker` | Notes, sounds, audio | `playAudio` false means backpressure; wait for the matching speaker's `speaker_audio_empty` |
-| `modem` | Wired/wireless messages | Channel limits, wired visibility, wireless/dimension constraints |
-| `printer` | Page lifecycle and text | Paper/ink, successful page creation, printable dimensions, page completion |
-| `drive` | Data/audio media | Present media, mount path, read-only state |
-| `computer` | Adjacent/network computer control | `turnOn`, `shutdown`, `reboot` change another computer's state |
-| `redstone_relay` | Remote redstone | Version support, physical side, event payload/source |
+| `monitor` | Terminal-style drawing; touch on advanced monitors | `getSize` returns columns, rows; text scale; resize; event source name |
+| `speaker` | Notes, sounds, audio | `playAudio` returning false means the buffer is full; wait for that speaker's `speaker_audio_empty` and retry |
+| `modem` | Wired/wireless messages | Channels 0 to 65535, open-channel limit, range, dimensions |
+| `printer` | Printing pages | Paper and ink, `newPage` result, page size, `endPage` result |
+| `drive` | Floppies and music discs | Disk present, mount path, read-only state |
+| `computer` | Controlling another computer | `turnOn`, `shutdown`, `reboot` affect that computer |
+| `redstone_relay` | Redstone at a distance | Requires 1.114.0+; sides are relative to the relay |
 
-Generic handler support is conditional on the runtime and block implementation. A Create machine without a specialized API may still expose inventory or fluid access. Capability discovery does not establish a crafting/progress API.
+Whether a block exposes generic handlers depends on the CC:T version and the block. A mod machine without its own API may still expose `inventory` or `fluid_storage`; that does not give it a crafting or progress API.
 
 ## Observation quality
 
-Aggregate the full data before returning a compact summary to a tool. A preview marked as truncated cannot support full inventory totals. Preserve sampling scope, time, item identity, and omissions. Reads across several containers are not an atomic snapshot; players and machines can move items during sampling.
+Aggregate the full data before summarizing it; a truncated preview cannot give inventory totals. Note what was sampled, when, and what was left out. Reading several containers is not an atomic snapshot: players and machines can move items while you read.
