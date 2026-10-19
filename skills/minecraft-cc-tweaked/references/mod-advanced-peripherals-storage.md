@@ -27,7 +27,7 @@ An empty filter can match everything, so always set `name` and `count`. Unknown 
 
 `importItem(fromName [, filter])` moves items from a container into the player; `exportItem(toName [, filter])` moves them out. Check the counts actually moved. Some methods accept names like `@front`, meaning a side of the **AP block** itself; this is not valid for CC:T's `pushItems`, pocket devices, or every AP method.
 
-`wrapStorageItem(slot)` returns an object for a storage item in that slot (such as a backpack). Check `isValid` and `isItemStorage`/`isFluidStorage` before using its list/tanks/import/export methods. Discard it when the item moves; it is not a network peripheral.
+`wrapStorageItem(slot)` returns an object for the storage item in that slot. Check `isValid` and `isItemStorage`/`isFluidStorage` before using its list/tanks/import/export methods. Discard it when the item moves; it is not a network peripheral.
 
 ## Bridge method families
 
