@@ -81,6 +81,6 @@ This decoder targets this one AP version; check the actual layout before using i
 | `geo_scanner` | `scanBlocks(radius)`, `chunkAnalyze([filter])`; fuel, cooldown, and range limits; the old name `scan` is gone |
 | `distance_detector` | `getDistance` returns a cached value, `calculateDistance` measures now (main thread); settings for detection, laser, transparency, period, range |
 | `energy_detector`, `fluid_detector`, optional `gas_detector` | Transfer rate and limits, not stored amount; units depend on the resource |
-| `nbt_storage` | `load`, `save(snbtOrTable)`; parse or size errors return false/reason; not a safe replacement for files |
+| `nbt_storage` | `load`, `save(snbtOrTable)`; may raise parse or size errors or return false/reason; not a safe replacement for files |
 
 Use the jar's names exactly, including the mismatched `getIgnoreTransparent` / `setIgnoreTransparency` and the misspelled `getLastTransferedId`. Transfer detectors also have `getReadyTransferId`. Do not "correct" the spelling, and do not treat a cached reading as a fresh measurement.
