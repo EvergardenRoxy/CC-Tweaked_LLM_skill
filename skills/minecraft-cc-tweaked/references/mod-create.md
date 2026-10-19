@@ -2,7 +2,7 @@
 
 [Artifact scope](mod-source-baseline.md) · [Logistics/trains](mod-create-logistics.md) · [Create with AP](mod-create-ap.md) · [Declaration index](mod-create-api.md)
 
-Contracts below refer to the reviewed Create 6.0.10 artifact. Discover the selected device's actual network name, types, and methods first. Native Create integration, CC generic handlers, and AP extensions are distinct layers. No connection implies invented `startCrafting`, `getProgress`, or `setRecipe` methods.
+The contracts below describe the reviewed Create 6.0.10 jar. First discover the selected device's actual network name, types, and methods. Create's own computer integration, CC:T's generic inventory/fluid handlers, and AP's Create extensions are separate layers. None of them provides `startCrafting`, `getProgress`, or `setRecipe`; do not invent such methods.
 
 ## Motion contracts
 
@@ -10,20 +10,20 @@ Contracts below refer to the reviewed Create 6.0.10 artifact. Discover the selec
 |---|---|---|
 | `Create_Speedometer` | `getSpeed()` | Signed actual speed; target speed is a different quantity |
 | `Create_Stressometer` | `getStress()`, `getStressCapacity()` | Guard zero capacity before ratios |
-| `Create_RotationSpeedController` | `getTargetSpeed()`, `setTargetSpeed(integer)` | Void setter; target readback does not prove the plant is moving |
+| `Create_RotationSpeedController` | `getTargetSpeed()`, `setTargetSpeed(integer)` | Returns nothing; reading the target back does not prove the machines are turning |
 | `Create_CreativeMotor` | `getGeneratedSpeed()`, `setGeneratedSpeed(integer)` | Creative device; not a default survival dependency |
-| `Create_SequencedGearshift` | `rotate(amount [, speedModifier])`, `move(...)`, `isRunning()` | New commands clear/replace the current sequence; do not repeatedly reset it |
-| `Create_Sticker` | `isExtended()`, `isAttachedToBlock()`, `extend()`, `retract()`, `toggle()` | Actions return booleans; confirm needed physical state |
+| `Create_SequencedGearshift` | `rotate(amount [, speedModifier])`, `move(...)`, `isRunning()` | A new command replaces the running sequence; do not resend it repeatedly |
+| `Create_Sticker` | `isExtended()`, `isAttachedToBlock()`, `extend()`, `retract()`, `toggle()` | Actions return booleans; confirm the resulting physical state |
 
-Rotation-controller limits are delegated to the actual block's scroll behavior/configuration. Do not assume a universal RPM bound. Select the controller driving the intended plant and verify actual speed/stress and material effect within the authorized scope.
+The speed controller's limits come from the block's own scroll setting and configuration; do not assume a fixed RPM range. Select the controller that drives the intended machines, then check the actual speed, stress, and material effect within what the user allowed.
 
-Gearshift amount is made absolute in this artifact; the optional modifier has an implementation default. Choose explicit parameters from the current machine behavior. Wait for `isRunning()==false` or a diagnosed failure before the next command. Main-thread methods yield; keep them out of the input listener.
+This jar uses the absolute value of `amount`, so a negative amount does not reverse direction; the optional modifier has its own default. Pass explicit parameters chosen from the machine's observed behavior. Wait until `isRunning()` returns false, or a failure is diagnosed, before sending the next command. Main-thread methods yield, so keep them out of the input listener.
 
-Pausing auxiliary feed, changing a clutch signal, and stopping rotation have different effects. Confirm wiring/polarity and already-held inputs. Shared power can also drive a display or unrelated machine.
+Stopping the auxiliary feed, switching a clutch, and stopping rotation have different effects. Confirm wiring and signal polarity, and what the machines already hold. The same rotation source may also drive displays or unrelated machines.
 
 ## Motion events
 
-Create's synchronized peripheral events prepend the **source attachment name**:
+Create's peripheral events put the **source peripheral name** first:
 
 | Event | Payload after event name |
 |---|---|
@@ -31,7 +31,7 @@ Create's synchronized peripheral events prepend the **source attachment name**:
 | `stress_change` | source, stress, capacity |
 | `overstressed` | source |
 
-Filter source, read initial state, and reconcile after reconnection. Events do not replace completion evidence.
+Filter by source, read the initial state at startup, and re-read after reconnecting. An event is not proof that work completed.
 
 ## `Create_DisplayLink`
 
@@ -39,15 +39,15 @@ Filter source, read initial state, and reconcile after reconnection. Events do n
 |---|---|
 | `getSize()` | **rows, columns**, unlike core term/monitor; main-thread |
 | `setCursorPos(x,y)`, `getCursorPos()` | One-based; upper bounds need application clipping |
-| `clear()`, `clearLine()` | Clear buffers; clearing does not reset cursor |
-| `write(text)` | Java string conversion; do not assume raw Lua UTF-8 bytes decode correctly |
-| `writeBytes(bytes)` | Integer table read in order and masked to bytes, then decoded as UTF-8; string input takes an ASCII path |
-| `update()` | Main-thread, void; submits the source update, not proof of visible rendering |
-| `isColor()`, `isColour()` | False; no native CC palette-style colors |
+| `clear()`, `clearLine()` | Clear the buffer; the cursor is not reset |
+| `write(text)` | Converts through a Java string; UTF-8 text from Lua comes out garbled |
+| `writeBytes(bytes)` | Integer table read in order, each value masked to a byte, then decoded as UTF-8; a string argument is treated as ASCII |
+| `update()` | Main-thread, returns nothing; sends the update, which does not prove the board shows it |
+| `isColor()`, `isColour()` | Always false; no CC palette colors |
 
-Confirm target, starting row, drive/power, and visible result. One instance can maintain multiple lines; the implementation does not require one link per row.
+Confirm the target, starting row, that the link is powered/driven, and the visible result. One Display Link can fill several lines; you do not need one link per row.
 
-Save the following as `create_board.lua`. It assumes **valid BMP text** with one codepoint per target column, not arbitrary emoji/combining-character width. Failed submissions do not update its cache. Use `force` after target changes/external edits. For malformed or untrusted strings, validate before calling; character clipping itself may raise an encoding error.
+Save the following as `create_board.lua`. It assumes **valid BMP text** with one character per display column; emoji and combining characters will misalign. A failed update does not update its cache. Pass `force` after the target changes or something else wrote to it. Validate malformed or untrusted strings first: `utf8.offset` raises an error on invalid UTF-8.
 
 ```lua
 -- create_board.lua
@@ -83,10 +83,10 @@ end
 return render
 ```
 
-`submitted` means these calls did not raise an error. Confirm actual target rendering separately. The getSize/update calls can yield, so render in an appropriate worker. Cache identity is the wrapped object plus frame; replace/invalidate on reconnect.
+`submitted` only means no call raised an error; confirm on the real display. `getSize` and `update` yield, so call `render` from a worker, not the input listener. The cache is keyed by the wrapped object and the frame, so a reconnect (new wrapper) redraws.
 
 ## Nixie tubes
 
-`Create_NixieTube` provides `setText(text [, color])`, `setTextColour`/`setTextColor`, and `setSignal([firstTable [, secondTable]])`. Color and signal schemas are this mod's contracts, not CC color masks or DisplayLink byte tables. Verify supported strings/fields before writing.
+`Create_NixieTube` provides `setText(text [, color])`, `setTextColour`/`setTextColor`, and `setSignal([firstTable [, secondTable]])`. Their color names and signal tables are Create's own formats, not CC color masks or Display Link byte tables. Check the supported values before writing.
 
-For material processing, use the **effective recipe and actual topology**, not a remembered Create recipe. See [production](recipes-and-production.md). Validate actual processing, pause boundaries, overload, destination capacity, and restart windows separately from displays/API calls.
+For processing materials, use the **pack's effective recipe and the actual machine layout**, not a remembered Create recipe; see [production](recipes-and-production.md). Test real processing, pausing, overload, full outputs, and restarts separately from display and API calls.

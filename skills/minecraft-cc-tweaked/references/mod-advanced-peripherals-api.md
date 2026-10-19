@@ -2,13 +2,13 @@
 
 [Guide](mod-advanced-peripherals.md) · [Artifact scope](mod-source-baseline.md)
 
-Generated directly from class-file `LuaFunction` annotations without executing the jar.
-This is a declaration/name index, **not a Lua argument or return-value specification**.
-See the guide and current implementation for contracts. Names alone do not prove device availability, permissions, dependencies, or valid state.
+Generated from the `LuaFunction` annotations in the jar's class files, without running the jar.
+It lists method names only; it **does not describe Lua arguments or return values**.
+See the guide and the installed implementation for how to call them. A name here does not prove the device exists in a game, or the needed permissions, dependencies, or state.
 
-`*` means mainThread=true; an unmarked method is not guaranteed never to yield.
-Merge inherited declarations as appropriate, and verify dynamic plugins, owner capabilities, and optional integrations with runtime getMethods.
-Java class names locate implementation; they are not peripheral.find type names. Returned-object methods are not necessarily block-peripheral methods.
+`*` marks main-thread methods, which yield until the next game tick; unmarked methods may still yield.
+A class also has its parent classes' methods. Check plugins, device-form differences, and optional integrations with `peripheral.getMethods` in the game.
+Java class names show where the code lives; they are not `peripheral.find` types. Methods of returned objects are not methods of the block peripheral.
 
 Artifact SHA-256: `1bf3e11a1aea4cb4ab024d2fd43261d02565c304a705c6a379e7ebfa4c2d277e`.
 

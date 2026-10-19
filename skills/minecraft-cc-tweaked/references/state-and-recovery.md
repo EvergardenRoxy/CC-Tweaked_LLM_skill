@@ -6,23 +6,23 @@
 
 | Data | Read failure policy |
 |---|---|
-| Disposable display settings | Validate, warn, and use documented defaults if appropriate |
-| Accepted orders, request IDs, intents, settlement counts | Preserve evidence; recover a valid generation or pause for reconciliation |
-| Observation/render cache | Rebuild; never treat it as the production ledger |
+| Disposable display settings | Validate, warn, and fall back to defaults |
+| Accepted orders, request IDs, intents, settled counts | Keep the files; recover from a valid earlier save or pause for reconciliation |
+| Observation or render cache | Rebuild it; never treat it as the production ledger |
 
-A missing main file does not prove first installation: backups, staging files, existing workpieces, or unsettled outputs may indicate interrupted work. A parseable backup does not establish which world actions occurred.
+A missing main file does not prove a first run: backups, temporary files, half-processed items, or unsettled outputs may show interrupted work. A readable backup does not tell you which world actions happened after it was written.
 
 ## Recoverable persistence protocol
 
-Implement only the durability the task needs, but state its boundaries.
+Build only the durability the task needs, and state what it does not cover.
 
-1. Validate schema, revision, identities, count ranges, and pending intent. A decoded table can still be invalid.
-2. Write a separate staging file. Check opening, writing, and closing; reread and validate it. A free-space estimate cannot replace the actual result.
-3. Preserve a valid previous generation before promotion. An existing backup destination can make `fs.copy` fail: define and check backup replacement, rather than swallowing its exception.
-4. Define recovery for interruption during each move/copy/promotion stage. Never delete the only valid copy first. Deleting an old directory then moving a new one is not an atomic update.
-5. Permit a new external action only after its required intent is saved. After execution, record confirmed effects. If settlement cannot be saved, pause and retain evidence.
+1. Validate the format, revision, IDs, count ranges, and pending intent. A table that decodes can still be invalid.
+2. Write a separate temporary file. Check that opening, writing, and closing succeeded, then read it back and validate it. Checking free space first does not replace checking the write.
+3. Keep a valid previous save before replacing the main file. `fs.copy` and `fs.move` fail when the destination exists: delete or rotate the old backup explicitly and check each step instead of swallowing the error.
+4. Decide how to recover if the computer stops during each copy, move, or replace step. Never delete the only valid copy first. Deleting the old directory and then moving the new one in is not atomic.
+5. Allow a world action only after its intent is saved. Afterwards, record the confirmed effect. If that record cannot be saved, pause and keep the evidence.
 
-Disk files and the game world are separate systems. A higher revision or newer timestamp does not prove that a pending action happened. A recoverable sequence of renames does not guarantee that the main path always exists or that physical storage has synchronized.
+Files and the game world are separate systems. A higher revision or newer timestamp does not prove a pending action happened. Even a recoverable sequence of renames does not guarantee that the main file always exists or that the data reached the server's disk.
 
 ## Gate the action on persistence
 
@@ -50,23 +50,23 @@ end
 return after_persist
 ```
 
-`not_persisted` means this call did not execute the action; the caller must not feed through another branch. `uncertain` means the action may already have changed the world; reconcile before retrying. `called` means no exception: the packed tuple contains the pcall flag at index 1 and business values from index 2.
+`not_persisted` means the action did not run; the caller must not perform it through another path. `uncertain` means the action may already have changed the world; reconcile before retrying. `called` means no error was raised: `result[1]` is the pcall flag and the action's own return values start at `result[2]`.
 
-This helper implements neither persistence nor exactly-once execution. Interpret false, nil, zero/partial movement, returned jobs, and void setters using the specific API contract.
+This helper provides neither persistence nor exactly-once execution. Interpret false, nil, zero or partial transfers, returned job objects, and setters that return nothing according to each API's contract.
 
 ## Restart reconciliation
 
-Stop new feed, inspect ledger generations and complete relevant inventories/state, and compare pending intents with actual source, work position, and destination. Account for players and external automation. If completion cannot be determined, expose the ambiguity and pause.
+Stop feeding new material. Read the saved ledger versions and the complete relevant inventories and machine state, and compare pending intents with the actual source, machine, and destination. Allow for players and other automation. If you cannot tell whether an action completed, show that and pause.
 
-Persist deduplication records if IDs must survive restart; document their retention and expiry behavior. Count actual accepted output rather than nominal yield. Do not equate a byproduct inventory's total item count with failed attempts.
+Persist deduplication records if request IDs must survive a restart, and document how long they are kept. Count actual delivered output, not expected yield. The number of items in a byproduct chest is not the number of failed attempts.
 
 | Fault window | Required result |
 |---|---|
-| Main corrupted after several saves | Backup actually advances; recovery source and rollback range are visible |
-| Main and backup both invalid | Preserve files and pause; no empty-ledger reset |
-| Intent open/write/close/promotion fails | No new material action; recoverable generation remains |
-| Action executes, settlement fails | Reconcile before repeating the action |
-| Final input consumed, result not settled | Inspect workpiece/output/transfer boundaries separately |
-| Destination full or partial move | Count only confirmed movement; retain remaining intent |
+| Main file corrupted after several saves | The backup is current; the recovery source and how much was rolled back are shown |
+| Main and backup both invalid | Keep the files and pause; never reset to an empty ledger |
+| Saving the intent fails (open, write, close, or replace) | No new world action; a recoverable save remains |
+| Action runs, recording the result fails | Reconcile before repeating the action |
+| Last input consumed, result not recorded | Check the machine, output, and transfer separately |
+| Destination full or partial move | Count only confirmed movement; keep the rest pending |
 
-Run the documented gate tests from the repository; they do not validate every persistence protocol or power-loss window.
+The repository's tests exercise this helper; they do not validate every save protocol or power-loss moment.
