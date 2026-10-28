@@ -4,7 +4,9 @@
 
 ## Movement and fuel
 
-Check the result of every move, turn, dig, place, and attack: they return `false, reason` instead of raising errors. Update the position model only after a move succeeds. Do not dig or attack automatically whenever a move fails: the obstacle may be protected, valuable, a player or mob, or outside the area the user allowed. Falling gravel and sand need a bounded `while turtle.detect() do turtle.dig() end`.
+Check the result of every move, turn, dig, place, and attack: ordinary action failures return `false, reason`; invalid arguments and other errors may still raise exceptions. Update the position model only after a move succeeds. Do not dig or attack automatically whenever a move fails: the obstacle may be protected, valuable, a player or mob, or outside the area the user allowed.
+
+For falling gravel or sand, limit the number of attempts or the elapsed time, check every dig result, and stop with the returned reason on failure. Recheck the block before digging again and retry the move only within the allowed area. An unchecked detect/dig loop has no stop policy for a protected block or a continuing stream of falling material.
 
 Moving uses one fuel per block; turning does not. `turtle.getFuelLevel()` returns a number or `"unlimited"`; the maximum is `turtle.getFuelLimit()`. `turtle.refuel(0)` tests whether the selected item is fuel without using it; pass an explicit count when refueling. Plan fuel for the return trip. Turtles have 16 slots and two upgrade sides; check the actual upgrades and limits instead of copying creative-mode assumptions.
 

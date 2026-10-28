@@ -23,7 +23,7 @@ For any other mod peripheral, try one short message in the game and have the pla
 - Native terminals and monitors draw a fixed 256-glyph set (ASCII, drawing characters at 128–159, Latin-1 at 160–255), one glyph per byte. A UTF-8 Chinese character therefore shows as two or three unrelated glyphs.
 - **Text from a mod (Java) into Lua** arrives with characters above U+00FF replaced by `?`. Use a separate UTF-8 field when the mod provides one, such as `messageUtf8`.
 - **Text from Lua into a mod** usually becomes one Java character per byte, so UTF-8 appears as mojibake such as `å·²`. A mod can only show it correctly through a channel that decodes UTF-8: AP's `utf8` option or JSON escapes, Create's byte table.
-- In a cct-run trace, an argument that shows one strange character per byte (`å·²`) will be garbled in the game.
+- A cct-run trace may show UTF-8 bytes as Latin-1-looking text such as `å·²`. That appearance alone does not prove the game output is garbled: AP's `utf8=true` path intentionally decodes those bytes. Check the byte values and the receiving API's decoding contract, then verify the visible result in the game. A plain Java-string path without UTF-8 decoding will still garble those bytes.
 
 | Surface | Reviewed path | Verify in game |
 |---|---|---|
