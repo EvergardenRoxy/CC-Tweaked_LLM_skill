@@ -27,7 +27,7 @@ This works because no callback yields. Comparing timer IDs does not bring back a
 
 Split the program into a **listener** that only parses, validates, and queues input; a **worker** that alone drives actuators; and a **poller** that reads devices and publishes what it sees. `parallel` hands each event to every child coroutine whose current filter matches, so a coroutine waiting on a peripheral call misses events only for itself. The computer's event queue and mod input buffers are still finite.
 
-The following is a small **in-memory dashboard demo**, not a durable order queue. Touching the monitor toggles a redstone output; Q stops it. Before use, make sure only the intended inventory and monitor match, and check the output polarity. When the queue is full, the listener rejects the new command visibly instead of dropping queued ones. A real order system must save accepted orders when needed and send a rejection to the specific requester.
+The following is a small **in-memory dashboard demo**, not a durable order queue. Touching the monitor queues a request to toggle the redstone output; Q queues a request to turn it off. The dashboard keeps running; hold Ctrl+T to terminate the program. Q goes through the same bounded queue and worker as touch input, so it is not an emergency stop. Before use, make sure only the intended inventory and monitor match, and check the output polarity. When the queue is full, the listener rejects the new command visibly instead of dropping queued ones. A real order system must save accepted orders when needed and send a rejection to the specific requester.
 
 ```lua
 -- Volatile dashboard demo: keep yielding reads out of the input listener.

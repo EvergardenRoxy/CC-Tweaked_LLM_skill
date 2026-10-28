@@ -9,6 +9,8 @@ CC:T's Lua environment differs from desktop Lua: a Lua 5.2 runtime (Cobalt), eve
 
 This file holds the rules, workflow, execution model, and quick reference. Read the topic pages in [the reference map](#reference-map) when a task needs their detail; reference examples describe particular environments and never override the user's modpack, server configuration, or instructions.
 
+Use the user's language for explanations and setup instructions. The English-only guidance below applies to text drawn with native terminal/monitor glyphs; it does not require English replies or prohibit verified UTF-8 mod channels.
+
 ## Workflow
 
 1. **Restate the goal** as the result the user wants, not the mechanism they mentioned. Break it down: inputs, decisions, outputs, frequency, and what happens on failure.
@@ -24,7 +26,7 @@ This file holds the rules, workflow, execution model, and quick reference. Read 
 2. **CC APIs and wrapped peripherals use `.`**: `turtle.forward()`, `peripheral.wrap("top")`, `chest.list()`, `mon.write("x")`. Colon calls are for Lua objects that take `self`: `io` file handles (`f:read("l")`), `vector` objects, string methods (`s:sub(1, 3)`), and your own objects. `fs.open` handles use dots: `h.readAll()`, `h.close()`.
 3. **Use real peripheral names.** Adjacent devices use a side: `top`, `bottom`, `left`, `right`, `front`, `back`. Devices on a wired network use the name printed when the modem is activated, such as `minecraft:chest_0`. Check `wrap`/`find` results for `nil` and fail with `error("message", 0)`. When several devices match, select and store an explicit name instead of taking the first `find` result.
 4. **Check results; most failures do not raise errors.** Turtle actions return `false, reason`; `fs.open`, `http.get`, `peripheral.wrap`, and `rednet.receive(protocol, timeout)` can return `nil`. `pcall` only reports whether an error was raised: a returned `false`, `nil`, or zero items moved is still a failure. Keep the complete return tuple.
-5. **Every long-running loop must yield** (`os.pullEvent`, `sleep`, turtle actions, or peripheral calls), or the computer stops it with `Too long without yielding`.
+5. **Every long-running loop must yield**, or the computer stops it with `Too long without yielding`. Use `os.pullEvent`, `sleep`, or an operation verified to yield on the target runtime. Native terminal/monitor drawing and some other peripheral methods return immediately; calling them in a loop does not make that loop yield.
 6. **Waiting discards other events.** `sleep`, filtered `os.pullEvent`, `rednet.receive`, and peripheral methods that wait for the server all drop the unrelated events that arrive meanwhile. Generic inventory/tank/energy methods and most mod methods wait at least one game tick. To poll devices *and* respond to touches/keys/chat, run a non-yielding listener and the device work in separate `parallel` tasks ([events](references/events-and-concurrency.md)).
 7. **`inventory.list()` and `fluid_storage.tanks()` are sparse**: iterate with `pairs`. `pushItems`/`pullItems` take the other peripheral's **name string** (`peripheral.getName(other)`), and both containers must be on the same wired network. Transfers return the count actually moved.
 8. **Turtle movement uses fuel** (turning does not). `turtle.getFuelLevel()` may return `"unlimited"`; test for it before comparing numbers. Handle falling gravel/sand, mobs, full inventories, and fuel for the return trip. Never dig or attack blindly when a move fails.
@@ -42,14 +44,14 @@ This file holds the rules, workflow, execution model, and quick reference. Read 
 Each computer runs one Lua program in a coroutine, driven by events:
   os.pullEvent(filter)  yields until a matching event arrives; others are discarded
   sleep(n)              = os.startTimer(n) + wait for that timer only
-  peripheral/turtle     yield until the server runs them on the next game tick (>= 0.05 s);
-                        events arriving meanwhile are discarded
-                        (terminal/monitor drawing methods return immediately)
+  main-thread methods  yield while waiting for the server; unrelated events delivered
+                       to that coroutine meanwhile are discarded
+  immediate methods    return without yielding (including native terminal/monitor drawing)
   event queue           holds about 256 events; overflow is dropped
   no yield for seconds  "Too long without yielding"; the program is stopped
 ```
 
-`parallel.waitForAny/waitForAll` switch between coroutines when one yields; nothing runs truly in parallel. Time is in seconds with game-tick (0.05 s) resolution.
+`parallel.waitForAny/waitForAll` switch between coroutines when one yields; nothing runs truly in parallel. Timers and main-thread work use game ticks (nominally 0.05 seconds); server lag can make them take longer in real time. Do not assume every peripheral method yields or that a main-thread call finishes within one tick.
 
 | Need | Structure |
 |---|---|
@@ -90,7 +92,7 @@ for _, name in ipairs(peripheral.getNames()) do print(name, peripheral.getType(n
 | Wired network | Attach a wired modem to the computer and to each device, connect them with cable, right-click each device's modem to connect it (it shows the network name in chat). Changes fire `peripheral` / `peripheral_detach` |
 | Inventories | `for slot, item in pairs(inv.list()) do ... end`; `inv.pushItems(peripheral.getName(dest), slot [, limit [, toSlot]])`; `size()`, `getItemDetail(slot)` |
 | Fluids / energy | `tanks()` (sparse, mB), `pushFluid(toName [, limit [, fluidName]])`; `getEnergy()`, `getEnergyCapacity()` (FE) |
-| Turtles | `turtle.forward()` returns `ok, reason`; `while turtle.detect() do turtle.dig() end` for gravel; `turtle.refuel(0)` tests whether the selected item is fuel |
+| Turtles | Check `ok, reason` from `turtle.forward()` and `turtle.dig()`; bound retries for falling blocks and stop on failure ([turtles](references/turtle.md)); `turtle.refuel(0)` tests whether the selected item is fuel |
 | Redstone | `redstone.setOutput("back", true)`, `setAnalogOutput("top", 7)`, `getInput("left")`; wait with `os.pullEvent("redstone")`; remote sides via `redstone_relay` (1.114.0+) |
 | Rednet | `peripheral.find("modem", rednet.open)`; `rednet.send(id, tbl, "proto")`; `rednet.receive("proto", timeout)`; no encryption or delivery guarantee |
 | Monitors | `mon.setTextScale(0.5)` (0.5 to 5); `mon.setCursorPos(1, 1)`, `mon.write("x")` (no wrapping); `getSize()` returns columns, rows; touch (`monitor_touch`, name, x, y) on advanced monitors only |
